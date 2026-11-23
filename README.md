@@ -56,16 +56,16 @@ Sales Order (Open)                 -> Delivery      -> stok berkurang
 - **Framework:** CodeIgniter 4 (pola MVC, logika bisnis di folder `Services`)
 - **Database:** PostgreSQL
 - **Tampilan:** Bootstrap 5.3 dan Bootstrap Icons (dimuat dari CDN, jadi perlu koneksi internet saat membuka halaman)
-- **Bahasa:** PHP 8.1 atau lebih baru
+- **Bahasa:** PHP 8.5.12
 
 ## Kebutuhan Sistem
 
 | Komponen | Versi / Keterangan |
 |---|---|
-| PHP | 8.1 atau lebih baru |
+| PHP | PHP 8.5.12 |
 | Ekstensi PHP | `intl`, `mbstring`, `json`, `pgsql` (dan `pdo_pgsql` bila diminta), serta `zip` (dipakai Composer untuk mengunduh paket) |
 | PostgreSQL | 12 atau lebih baru |
-| Composer | 2.x |
+| Composer | 2.11.2 |
 | Browser | Edge, Chrome, atau Firefox versi terbaru |
 
 > Pengguna XAMPP: buka `php.ini` (lewat tombol **Config** pada modul Apache di XAMPP Control Panel),
