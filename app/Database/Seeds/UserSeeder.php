@@ -10,7 +10,7 @@ class UserSeeder extends Seeder
     {
         // Password awal HANYA untuk development, wajib diganti di lingkungan lain.
         // Bisa di-override lewat .env:  seed.defaultPassword = 'isi-sendiri'
-        $plain = env('seed.defaultPassword', 'Password123!');
+        $plain = env('seed.defaultPassword', ' Password123!');
         $hash  = password_hash($plain, PASSWORD_DEFAULT); // disimpan sebagai hash (NFR-01)
 
         $users = [

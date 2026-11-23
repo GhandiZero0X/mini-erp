@@ -95,10 +95,10 @@ class Auth extends BaseConfig
         ['group' => 'Master Data',  'label' => 'Supplier',           'path' => 'suppliers',        'icon' => 'bi-truck',           'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data supplier.'],
         ['group' => 'Master Data',  'label' => 'Customer',           'path' => 'customers',        'icon' => 'bi-people',          'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data customer.'],
 
-        ['group' => 'Purchasing',   'label' => 'Purchase Order',     'path' => 'purchase-orders',  'icon' => 'bi-cart-plus',       'feature' => 'purchase_order',  'ready' => false, 'desc' => 'Buat dan setujui Purchase Order.'],
-        ['group' => 'Purchasing',   'label' => 'Goods Receipt',      'path' => 'goods-receipts',   'icon' => 'bi-box-arrow-in-down','feature' => 'goods_receipt',  'ready' => false, 'desc' => 'Catat penerimaan barang.'],
+        ['group' => 'Purchasing',   'label' => 'Purchase Order',     'path' => 'purchase-orders',  'icon' => 'bi-cart-plus',       'feature' => 'purchase_order',  'ready' => true, 'desc' => 'Buat & setujui Purchase Order.'],
+        ['group' => 'Purchasing',   'label' => 'Goods Receipt',      'path' => 'goods-receipts',   'icon' => 'bi-box-arrow-in-down','feature' => 'goods_receipt',  'ready' => true, 'desc' => 'Catat penerimaan barang.'],
 
-        ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => false, 'desc' => 'Buat dan pantau Sales Order.'],
+        ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => false, 'desc' => 'Buat & pantau Sales Order.'],
         ['group' => 'Sales',        'label' => 'Delivery',           'path' => 'deliveries',       'icon' => 'bi-box-arrow-up',    'feature' => 'delivery',        'ready' => false, 'desc' => 'Catat pengeluaran barang.'],
 
         ['group' => 'Inventory',    'label' => 'Stok Produk',        'path' => 'stock',            'icon' => 'bi-boxes',           'feature' => 'stock',           'ready' => false, 'desc' => 'Lihat stok terkini per produk.'],

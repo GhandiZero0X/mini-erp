@@ -83,3 +83,26 @@ $routes->group('customers', ['filter' => 'auth:master_data,W'], static function 
     $routes->post('(:num)', 'Customers::update/$1');
     $routes->post('(:num)/delete', 'Customers::delete/$1');
 });
+
+// UC-07, UC-08 Purchase Order. Lihat = Purchasing & Gudang (R); buat/setujui = Purchasing (W).
+$routes->group('purchase-orders', ['filter' => 'auth:purchase_order'], static function ($routes) {
+    $routes->get('', 'PurchaseOrders::index');
+    $routes->get('(:num)', 'PurchaseOrders::show/$1');
+});
+$routes->group('purchase-orders', ['filter' => 'auth:purchase_order,W'], static function ($routes) {
+    $routes->get('new', 'PurchaseOrders::new');
+    $routes->post('', 'PurchaseOrders::create');
+    $routes->post('(:num)/approve', 'PurchaseOrders::approve/$1');
+    $routes->post('(:num)/cancel',  'PurchaseOrders::cancel/$1');
+});
+
+// UC-09 Goods Receipt: hanya Staf Gudang (fitur 'goods_receipt'). Angka pada new/(:num) = id PO yang diterima.
+$routes->group('goods-receipts', ['filter' => 'auth:goods_receipt'], static function ($routes) {
+    $routes->get('', 'GoodsReceipts::index');
+    $routes->get('(:num)', 'GoodsReceipts::show/$1');
+});
+$routes->group('goods-receipts', ['filter' => 'auth:goods_receipt,W'], static function ($routes) {
+    $routes->get('new/(:num)', 'GoodsReceipts::new/$1');
+    $routes->post('new/(:num)', 'GoodsReceipts::create/$1');
+    $routes->post('(:num)/cancel', 'GoodsReceipts::cancel/$1'); 
+});
