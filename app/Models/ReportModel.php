@@ -77,7 +77,7 @@ class ReportModel extends Model
             ->where('so.status !=', $cancelled)
             ->where('so.so_date >=', $start)
             ->where('so.so_date <=', $end)
-            ->groupBy('soi.product_id')
+            ->groupBy(['soi.product_id', 'p.code', 'p.name']) // <-- FIX DI SINI
             ->orderBy('total_qty', 'DESC')
             ->limit(10)
             ->get()->getResultArray();
