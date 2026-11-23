@@ -101,8 +101,8 @@ class Auth extends BaseConfig
         ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => true, 'desc' => 'Buat & pantau Sales Order.'],
         ['group' => 'Sales',        'label' => 'Delivery',           'path' => 'deliveries',       'icon' => 'bi-box-arrow-up',    'feature' => 'delivery',        'ready' => true, 'desc' => 'Catat pengeluaran barang.'],
 
-        ['group' => 'Inventory',    'label' => 'Stok Produk',        'path' => 'stock',            'icon' => 'bi-boxes',           'feature' => 'stock',           'ready' => false, 'desc' => 'Lihat stok terkini per produk.'],
-        ['group' => 'Inventory',    'label' => 'Histori Mutasi',     'path' => 'stock-movements',  'icon' => 'bi-clock-history',   'feature' => 'stock_movement',  'ready' => false, 'desc' => 'Telusuri mutasi stok.'],
+        ['group' => 'Inventory',    'label' => 'Stok Produk',        'path' => 'stock',            'icon' => 'bi-boxes',           'feature' => 'stock',           'ready' => true, 'desc' => 'Lihat stok terkini per produk.'],
+        ['group' => 'Inventory',    'label' => 'Histori Mutasi',     'path' => 'stock-movements',  'icon' => 'bi-clock-history',   'feature' => 'stock_movement',  'ready' => true, 'desc' => 'Telusuri mutasi stok.'],
 
         ['group' => 'Laporan',      'label' => 'Laporan Pembelian',  'path' => 'reports/purchases','icon' => 'bi-file-earmark-bar-graph','feature' => 'report_purchase','ready' => false, 'desc' => 'Rekap pembelian per periode.'],
         ['group' => 'Laporan',      'label' => 'Laporan Penjualan',  'path' => 'reports/sales',    'icon' => 'bi-file-earmark-bar-graph','feature' => 'report_sales',   'ready' => false, 'desc' => 'Rekap penjualan per periode.'],

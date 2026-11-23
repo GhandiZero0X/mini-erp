@@ -14,12 +14,12 @@ $this->extend('layouts/main');
 <form method="get" action="<?= site_url('goods-receipts') ?>" class="row g-2 mb-3">
     <div class="col-12 col-md-6 col-lg-4">
         <input type="search" name="q" class="form-control" maxlength="100"
-               placeholder="Cari nomor GR, nomor PO, atau supplier" value="<?= esc($search) ?>">
+            placeholder="Cari nomor GR, nomor PO, atau supplier" value="<?= esc($search) ?>">
     </div>
     <div class="col-auto">
         <button type="submit" class="btn btn-outline-primary">Cari</button>
         <?php if ($search !== ''): ?>
-            <a href="<?= site_url('goods-receipts') ?>" class="btn btn-outline-secondary">Reset</a>
+        <a href="<?= site_url('goods-receipts') ?>" class="btn btn-outline-secondary">Reset</a>
         <?php endif; ?>
     </div>
 </form>
@@ -38,27 +38,30 @@ $this->extend('layouts/main');
             </tr>
         </thead>
         <tbody>
-        <?php if ($rows === []): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">Tidak ada data</td></tr>
-        <?php else: ?>
+            <?php if ($rows === []): ?>
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">Tidak ada data</td>
+            </tr>
+            <?php else: ?>
             <?php foreach ($rows as $row): ?>
-                <tr>
-                    <td class="text-nowrap fw-semibold"><?= esc($row['gr_number']) ?></td>
-                    <td class="text-nowrap"><?= esc(format_date($row['receipt_date'])) ?></td>
-                    <td class="text-nowrap"><?= esc($row['po_number']) ?></td>
-                    <td><?= esc($row['supplier_name']) ?></td>
-                    <td><?= status_badge($row['status']) ?></td>
-                    <td class="text-end"><?= number_format($row['total_qty'], 0, ',', '.') ?></td>
-                    <td class="text-end text-nowrap">
-                        <a href="<?= site_url('goods-receipts/' . $row['id']) ?>" class="btn btn-sm btn-outline-primary">Detail</a>
-                    </td>
-                </tr>
+            <tr>
+                <td class="text-nowrap fw-semibold"><?= esc($row['gr_number']) ?></td>
+                <td class="text-nowrap"><?= esc(format_date($row['receipt_date'])) ?></td>
+                <td class="text-nowrap"><?= esc($row['po_number']) ?></td>
+                <td><?= esc($row['supplier_name']) ?></td>
+                <td><?= status_badge($row['status']) ?></td>
+                <td class="text-end"><?= number_format($row['total_qty'], 0, ',', '.') ?></td>
+                <td class="text-end text-nowrap">
+                    <a href="<?= site_url('goods-receipts/' . $row['id']) ?>"
+                        class="btn btn-sm btn-outline-primary">Detail</a>
+                </td>
+            </tr>
             <?php endforeach; ?>
-        <?php endif; ?>
+            <?php endif; ?>
         </tbody>
     </table>
 </div>
 
-<?= $pager->links() ?>
+<?= $pager->links('default', 'bootstrap_full') ?>
 
 <?= $this->endSection() ?>

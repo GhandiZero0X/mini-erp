@@ -128,3 +128,11 @@ $routes->group('deliveries', ['filter' => 'auth:delivery,W'], static function ($
     $routes->post('new/(:num)', 'Deliveries::create/$1');
     $routes->post('(:num)/cancel', 'Deliveries::cancel/$1');
 });
+
+// UC-15 Stok Produk & UC-16 Histori Mutasi. Semua peran dengan fitur ini; level R.
+$routes->group('', ['filter' => 'auth:stock'], static function ($routes) {
+    $routes->get('stock', 'Inventory::stock');
+});
+$routes->group('', ['filter' => 'auth:stock_movement'], static function ($routes) {
+    $routes->get('stock-movements', 'Inventory::movements');
+});

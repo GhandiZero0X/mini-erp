@@ -79,7 +79,7 @@ $rupiah = static function ($v): string {
     </table>
 </div>
 
-<?= $pager->links() ?>
+<?= $pager->links('default', 'bootstrap_full') ?>
 
 <?php if ($canWrite): ?>
 <!-- Dialog konfirmasi hapus (UC-04 langkah 9, A7) -->

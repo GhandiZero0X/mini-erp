@@ -81,6 +81,6 @@ $this->extend('layouts/main');
     </table>
 </div>
 
-<?= $pager->links() ?>
+<?= $pager->links('default', 'bootstrap_full') ?>
 
 <?= $this->endSection() ?>
