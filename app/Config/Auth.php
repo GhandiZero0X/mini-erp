@@ -104,10 +104,10 @@ class Auth extends BaseConfig
         ['group' => 'Inventory',    'label' => 'Stok Produk',        'path' => 'stock',            'icon' => 'bi-boxes',           'feature' => 'stock',           'ready' => true, 'desc' => 'Lihat stok terkini per produk.'],
         ['group' => 'Inventory',    'label' => 'Histori Mutasi',     'path' => 'stock-movements',  'icon' => 'bi-clock-history',   'feature' => 'stock_movement',  'ready' => true, 'desc' => 'Telusuri mutasi stok.'],
 
-        ['group' => 'Laporan',      'label' => 'Laporan Pembelian',  'path' => 'reports/purchases','icon' => 'bi-file-earmark-bar-graph','feature' => 'report_purchase','ready' => false, 'desc' => 'Rekap pembelian per periode.'],
-        ['group' => 'Laporan',      'label' => 'Laporan Penjualan',  'path' => 'reports/sales',    'icon' => 'bi-file-earmark-bar-graph','feature' => 'report_sales',   'ready' => false, 'desc' => 'Rekap penjualan per periode.'],
-        ['group' => 'Laporan',      'label' => 'Laporan Stok',       'path' => 'reports/stock',    'icon' => 'bi-file-earmark-bar-graph','feature' => 'report_stock',   'ready' => false, 'desc' => 'Kondisi stok terkini.'],
-        ['group' => 'Laporan',      'label' => 'Produk Terlaris',    'path' => 'reports/top-products','icon' => 'bi-trophy',       'feature' => 'report_top',      'ready' => false, 'desc' => '10 produk terlaris per periode.'],
+        ['group' => 'Laporan',      'label' => 'Laporan Pembelian',  'path' => 'reports/purchases','icon' => 'bi-file-earmark-bar-graph','feature' => 'report_purchase','ready' => true, 'desc' => 'Rekap pembelian per periode.'],
+        ['group' => 'Laporan',      'label' => 'Laporan Penjualan',  'path' => 'reports/sales',    'icon' => 'bi-file-earmark-bar-graph','feature' => 'report_sales',   'ready' => true, 'desc' => 'Rekap penjualan per periode.'],
+        ['group' => 'Laporan',      'label' => 'Laporan Stok',       'path' => 'reports/stock',    'icon' => 'bi-file-earmark-bar-graph','feature' => 'report_stock',   'ready' => true, 'desc' => 'Kondisi stok terkini.'],
+        ['group' => 'Laporan',      'label' => 'Produk Terlaris',    'path' => 'reports/top-products','icon' => 'bi-trophy',       'feature' => 'report_top',      'ready' => true, 'desc' => '10 produk terlaris per periode.'],
 
         ['group' => 'Administrasi', 'label' => 'Pengguna',           'path' => 'users',            'icon' => 'bi-person-gear',     'feature' => 'users',           'ready' => true,  'desc' => 'Kelola akun pengguna.'],
     ];

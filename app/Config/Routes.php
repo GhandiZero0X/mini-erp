@@ -136,3 +136,20 @@ $routes->group('', ['filter' => 'auth:stock'], static function ($routes) {
 $routes->group('', ['filter' => 'auth:stock_movement'], static function ($routes) {
     $routes->get('stock-movements', 'Inventory::movements');
 });
+
+// ==========================================
+// UC-17 s.d UC-20: Laporan (Reporting)
+// ==========================================
+$routes->group('reports', ['filter' => 'auth'], static function ($routes) {
+    // Laporan Pembelian (Manajer, Admin, Purchasing)
+    $routes->get('purchases', 'Reports::purchases', ['filter' => 'auth:report_purchase']);
+    
+    // Laporan Penjualan (Manajer, Admin, Sales)
+    $routes->get('sales', 'Reports::sales', ['filter' => 'auth:report_sales']);
+    
+    // Laporan Stok (Manajer, Admin, Gudang, Sales)
+    $routes->get('stock', 'Reports::stock', ['filter' => 'auth:report_stock']);
+    
+    // Produk Terlaris (Manajer, Admin)
+    $routes->get('top-products', 'Reports::topProducts', ['filter' => 'auth:report_top']);
+});
