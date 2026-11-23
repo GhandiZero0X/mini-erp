@@ -98,8 +98,8 @@ class Auth extends BaseConfig
         ['group' => 'Purchasing',   'label' => 'Purchase Order',     'path' => 'purchase-orders',  'icon' => 'bi-cart-plus',       'feature' => 'purchase_order',  'ready' => true, 'desc' => 'Buat & setujui Purchase Order.'],
         ['group' => 'Purchasing',   'label' => 'Goods Receipt',      'path' => 'goods-receipts',   'icon' => 'bi-box-arrow-in-down','feature' => 'goods_receipt',  'ready' => true, 'desc' => 'Catat penerimaan barang.'],
 
-        ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => false, 'desc' => 'Buat & pantau Sales Order.'],
-        ['group' => 'Sales',        'label' => 'Delivery',           'path' => 'deliveries',       'icon' => 'bi-box-arrow-up',    'feature' => 'delivery',        'ready' => false, 'desc' => 'Catat pengeluaran barang.'],
+        ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => true, 'desc' => 'Buat & pantau Sales Order.'],
+        ['group' => 'Sales',        'label' => 'Delivery',           'path' => 'deliveries',       'icon' => 'bi-box-arrow-up',    'feature' => 'delivery',        'ready' => true, 'desc' => 'Catat pengeluaran barang.'],
 
         ['group' => 'Inventory',    'label' => 'Stok Produk',        'path' => 'stock',            'icon' => 'bi-boxes',           'feature' => 'stock',           'ready' => false, 'desc' => 'Lihat stok terkini per produk.'],
         ['group' => 'Inventory',    'label' => 'Histori Mutasi',     'path' => 'stock-movements',  'icon' => 'bi-clock-history',   'feature' => 'stock_movement',  'ready' => false, 'desc' => 'Telusuri mutasi stok.'],

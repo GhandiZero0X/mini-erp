@@ -25,6 +25,17 @@ class Documents extends BaseConfig
     /** Urutan tampil pada filter status daftar GR. */
     public array $grStatuses = [self::GR_ACTIVE, self::GR_CANCELLED];
 
+    // Status Sales Order
+    public const SO_OPEN      = 'Open';
+    public const SO_CANCELLED = 'Dibatalkan';
+
+    // Status Delivery
+    public const DL_ACTIVE    = 'Aktif';
+    public const DL_CANCELLED = 'Dibatalkan';
+
+    public array $soStatuses = [self::SO_OPEN, self::SO_CANCELLED];
+    public array $dlStatuses = [self::DL_ACTIVE, self::DL_CANCELLED];
+
     /** Awalan nomor dokumen: PREFIX-YYYYMM-0001. */
     public array $prefixes = [
         'purchase_order' => 'PO',

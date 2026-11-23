@@ -106,3 +106,25 @@ $routes->group('goods-receipts', ['filter' => 'auth:goods_receipt,W'], static fu
     $routes->post('new/(:num)', 'GoodsReceipts::create/$1');
     $routes->post('(:num)/cancel', 'GoodsReceipts::cancel/$1'); 
 });
+
+// UC-11, UC-14 Sales Order. Lihat = Sales & Gudang; buat/batal = Sales (W).
+$routes->group('sales-orders', ['filter' => 'auth:sales_order'], static function ($routes) {
+    $routes->get('', 'SalesOrders::index');
+    $routes->get('(:num)', 'SalesOrders::show/$1');
+});
+$routes->group('sales-orders', ['filter' => 'auth:sales_order,W'], static function ($routes) {
+    $routes->get('new', 'SalesOrders::new');
+    $routes->post('', 'SalesOrders::create');
+    $routes->post('(:num)/cancel', 'SalesOrders::cancel/$1');
+});
+
+// UC-13, UC-14 Delivery. Hanya Staf Gudang. Angka di new/(:num) = id SO.
+$routes->group('deliveries', ['filter' => 'auth:delivery'], static function ($routes) {
+    $routes->get('', 'Deliveries::index');
+    $routes->get('(:num)', 'Deliveries::show/$1');
+});
+$routes->group('deliveries', ['filter' => 'auth:delivery,W'], static function ($routes) {
+    $routes->get('new/(:num)', 'Deliveries::new/$1');
+    $routes->post('new/(:num)', 'Deliveries::create/$1');
+    $routes->post('(:num)/cancel', 'Deliveries::cancel/$1');
+});
