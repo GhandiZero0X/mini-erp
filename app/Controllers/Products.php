@@ -13,7 +13,11 @@ class Products extends BaseController
 {
     private ?ProductService $service = null;
 
-    private const FIELDS = ['code', 'name', 'unit_id', 'purchase_price', 'selling_price', 'category_id'];
+    // ← tambah min_stock & max_stock supaya ikut ditangkap dari POST
+    private const FIELDS = [
+        'code', 'name', 'unit_id', 'purchase_price', 'selling_price',
+        'category_id', 'min_stock', 'max_stock',
+    ];
 
     private function service(): ProductService
     {
@@ -26,7 +30,6 @@ class Products extends BaseController
         $search = trim((string) $this->request->getGet('q'));
         $data   = $this->service()->listPage($search);
 
-        // Menghapus baris terakhir di halaman terakhir meninggalkan halaman kosong: mundur ke halaman terakhir
         $page = (int) $this->request->getGet('page');
         if ($data['rows'] === [] && $page > 1) {
             $last   = max(1, $data['pager']->getPageCount());
@@ -54,7 +57,7 @@ class Products extends BaseController
             'title'      => 'Tambah Produk',
             'product'    => null,
             'categories' => $this->service()->categoryOptions(),
-            'units'      => $this->service()->unitOptions(),   // ← BARU
+            'units'      => $this->service()->unitOptions(),
             'action'     => site_url('products'),
             'errors'     => session()->getFlashdata('errors') ?? [],
             'old'        => session()->getFlashdata('old') ?? [],
@@ -86,7 +89,7 @@ class Products extends BaseController
             'title'      => 'Ubah Produk',
             'product'    => $product,
             'categories' => $this->service()->categoryOptions(),
-            'units'      => $this->service()->unitOptions(),   // ← BARU
+            'units'      => $this->service()->unitOptions(),
             'action'     => site_url('products/' . $id),
             'errors'     => session()->getFlashdata('errors') ?? [],
             'old'        => session()->getFlashdata('old') ?? [],
@@ -108,11 +111,10 @@ class Products extends BaseController
 
         $redirect = redirect()->to('/products')->with('success', $result['message']);
 
-        // A5: kode terkunci dicoba diubah, perubahan lain tetap tersimpan
         return $result['warning'] !== '' ? $redirect->with('warning', $result['warning']) : $redirect;
     }
 
-    /** POST /products/{id}/delete (HTML form hanya mengenal GET/POST) */
+    /** POST /products/{id}/delete */
     public function delete(int $id)
     {
         $result = $this->service()->delete($id);
@@ -124,7 +126,6 @@ class Products extends BaseController
         return redirect()->to('/products')->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    /** Kembali ke form dengan pesan; isian tidak hilang (UI standar SRS). */
     private function backToForm(string $url, array $result, array $input)
     {
         $redirect = redirect()->to($url)->with('errors', $result['errors'])->with('old', $input);
@@ -132,7 +133,6 @@ class Products extends BaseController
         return $result['message'] !== '' ? $redirect->with('error', $result['message']) : $redirect;
     }
 
-    /** A8: data yang dituju sudah tidak ada. */
     private function notFound()
     {
         $msg = config('Master')->messages['not_found'] ?? ProductService::DEFAULTS['not_found'];

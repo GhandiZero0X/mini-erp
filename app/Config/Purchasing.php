@@ -4,37 +4,36 @@ namespace Config;
 
 use CodeIgniter\Config\BaseConfig;
 
-/**
- * Pesan modul Purchasing (Bab 6 SRS), dipusatkan di satu tempat (NFR-06).
- * Pesan bertanda * adalah tambahan di luar SRS.
- * Pesan Goods Receipt dan pembatalan ditambahkan di sini saat modulnya dibuat.
- */
 class Purchasing extends BaseConfig
 {
     public array $messages = [
         // UC-07 Membuat Purchase Order
-        'supplier_required'  => 'Supplier wajib dipilih.',                                                   // VR-06
-        'supplier_invalid'   => 'Supplier tidak valid. Silakan pilih ulang.',                                // A5
-        'date_invalid'       => 'Tanggal tidak valid.',                                                      // *
-        'items_required'     => 'Transaksi harus memiliki minimal satu produk.',                             // VR-07
-        'items_max'          => 'Satu transaksi maksimal 100 baris produk.',                                 // *
-        'product_required'   => 'Produk wajib dipilih.',                                                     // *
-        'product_invalid'    => 'Produk tidak valid. Silakan pilih ulang.',                                  // A5
-        'product_duplicate'  => 'Produk sudah dipilih pada baris lain. Gabungkan kuantitasnya.',             // * (uq_po_items_po_product)
-        'qty_invalid'        => 'Kuantitas harus berupa bilangan bulat lebih besar dari 0.',                 // VR-08
-        'price_invalid'      => 'Harga satuan tidak valid.',                                                 // VR-09
-        'total_too_large'    => 'Nilai transaksi terlalu besar.',                                            // *
+        'supplier_required'  => 'Supplier wajib dipilih.',
+        'supplier_invalid'   => 'Supplier tidak valid. Silakan pilih ulang.',
+        'date_invalid'       => 'Tanggal tidak valid.',
+        'items_required'     => 'Transaksi harus memiliki minimal satu produk.',
+        'items_max'          => 'Satu transaksi maksimal 100 baris produk.',
+        'product_required'   => 'Produk wajib dipilih.',
+        'product_invalid'    => 'Produk tidak valid. Silakan pilih ulang.',
+        'product_duplicate'  => 'Produk sudah dipilih pada baris lain. Gabungkan kuantitasnya.',
+        'qty_invalid'        => 'Kuantitas harus berupa bilangan bulat lebih besar dari 0.',
+        'price_invalid'      => 'Harga satuan tidak valid.',
+        'total_too_large'    => 'Nilai transaksi terlalu besar.',
         'po_created'         => 'Purchase Order berhasil dibuat dengan status Draft.',
 
+        // ← BARU: batas atas (kapasitas) stok
+        'stock_at_max'       => 'Stok produk sudah mencapai batas maksimal, tidak dapat dipesan.',
+        'stock_exceeds_max'  => 'Kuantitas melebihi kapasitas. Sisa yang dapat dipesan: %d (maks %d, sudah ada %d).',
+
         // UC-08 Menyetujui Purchase Order
-        'approve_not_draft'  => 'Hanya PO berstatus Draft yang dapat disetujui.',                           // VR-25
+        'approve_not_draft'  => 'Hanya PO berstatus Draft yang dapat disetujui.',
         'po_approved'        => 'Purchase Order berhasil disetujui.',
 
         // UC-09 Mencatat Goods Receipt
-        'gr_not_receivable'  => 'Hanya PO berstatus Approved yang belum diterima penuh yang dapat diproses.', // VR-10
-        'gr_qty_invalid'     => 'Kuantitas diterima tidak valid atau melebihi sisa pesanan ({sisa}).',         // VR-11
-        'gr_nothing'         => 'Isi kuantitas diterima minimal untuk satu produk.',                          // VR-26
-        'gr_date_invalid'    => 'Tanggal penerimaan tidak valid.',                                            // *
+        'gr_not_receivable'  => 'Hanya PO berstatus Approved yang belum diterima penuh yang dapat diproses.',
+        'gr_qty_invalid'     => 'Kuantitas diterima tidak valid atau melebihi sisa pesanan ({sisa}).',
+        'gr_nothing'         => 'Isi kuantitas diterima minimal untuk satu produk.',
+        'gr_date_invalid'    => 'Tanggal penerimaan tidak valid.',
         'gr_created'         => 'Goods Receipt berhasil disimpan. Stok produk telah bertambah.',
 
         // Membatal PO/GR (UC-10, UC-11)
@@ -49,6 +48,6 @@ class Purchasing extends BaseConfig
 
         // Umum
         'not_found'          => 'Data tidak ditemukan.',
-        'save_failed'        => 'Data gagal disimpan karena terjadi kesalahan sistem. Silakan coba lagi.',   // A6, NFR-07
+        'save_failed'        => 'Data gagal disimpan karena terjadi kesalahan sistem. Silakan coba lagi.',
     ];
 }

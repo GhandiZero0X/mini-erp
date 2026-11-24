@@ -4,11 +4,6 @@ namespace App\Controllers;
 
 use App\Services\PurchaseOrderService;
 
-/**
- * UC-07 Membuat Purchase Order dan UC-08 Menyetujui Purchase Order (UI-07, UI-08, UI-09).
- * Hak akses diatur di Routes.php: lihat = auth:purchase_order (Purchasing, Gudang),
- * buat/setujui = auth:purchase_order,W (Purchasing). Controller tipis: logika ada di PurchaseOrderService.
- */
 class PurchaseOrders extends BaseController
 {
     private ?PurchaseOrderService $service = null;
@@ -18,7 +13,6 @@ class PurchaseOrders extends BaseController
         return $this->service ??= new PurchaseOrderService();
     }
 
-    /** GET /purchase-orders?q=...&status=...&page=... */
     public function index()
     {
         $search = trim((string) $this->request->getGet('q'));
@@ -43,18 +37,30 @@ class PurchaseOrders extends BaseController
             'pager'          => $data['pager'],
             'search'         => $search,
             'status'         => $status,
-            'statuses'       => config('Documents')->poStatuses,   // ← WAJIB: dipakai view
-            'canWrite'       => auth_can('purchase_order', 'W'),   // ← tombol "Buat PO"
-            'canApprove'     => auth_can('po_approve', 'W'),       // ← tombol "Setujui" (manajer)
+            'statuses'       => config('Documents')->poStatuses,
+            'canWrite'       => auth_can('purchase_order', 'W'),
+            'canApprove'     => auth_can('po_approve', 'W'),
             'receivableOnly' => $receivableOnly,
-            'canReceive'     => auth_can('goods_receipt', 'W'),    // ← tombol "Terima Barang" (gudang)
+            'canReceive'     => auth_can('goods_receipt', 'W'),
         ]);
     }
 
-    /** GET /purchase-orders/new */
+    /** GET /purchase-orders/new?product_id=X (opsional, pre-select dari dashboard) */
     public function new()
     {
         $form = $this->service()->formData();
+
+        // ← BARU: pre-select produk dari dashboard (?product_id=X)
+        $preselect = null;
+        $pid       = (int) $this->request->getGet('product_id');
+        if ($pid > 0) {
+            foreach ($form['products'] as $p) {
+                if ((int) $p['id'] === $pid) {
+                    $preselect = $p;
+                    break;
+                }
+            }
+        }
 
         return view('purchase_orders/form', [
             'title'     => 'Buat Purchase Order',
@@ -62,12 +68,12 @@ class PurchaseOrders extends BaseController
             'products'  => $form['products'],
             'action'    => site_url('purchase-orders'),
             'today'     => date('Y-m-d'),
+            'preselect' => $preselect,
             'errors'    => session()->getFlashdata('errors') ?? [],
             'old'       => session()->getFlashdata('old') ?? [],
         ]);
     }
 
-    /** POST /purchase-orders */
     public function create()
     {
         $input  = $this->request->getPost(['supplier_id', 'po_date', 'items']);
@@ -76,16 +82,14 @@ class PurchaseOrders extends BaseController
         if (! $result['ok']) {
             $redirect = redirect()->to('/purchase-orders/new')
                 ->with('errors', $result['errors'])
-                ->with('old', $input); // isian tidak hilang (UI standar SRS)
+                ->with('old', $input);
 
             return $result['message'] !== '' ? $redirect->with('error', $result['message']) : $redirect;
         }
 
-        // UC-07 langkah 9: tampilkan detail PO yang baru dibuat
         return redirect()->to('/purchase-orders/' . $result['id'])->with('success', $result['message']);
     }
 
-    /** GET /purchase-orders/{id} */
     public function show(int $id)
     {
         $po = $this->service()->find($id);
@@ -96,13 +100,12 @@ class PurchaseOrders extends BaseController
         return view('purchase_orders/detail', [
             'title'      => 'Detail Purchase Order',
             'po'         => $po,
-            'canWrite'   => auth_can('purchase_order', 'W'),   // ← tetap: kontrol batalkan, edit
-            'canApprove' => auth_can('po_approve', 'W'),       // ← BARU: kontrol tombol Setujui
+            'canWrite'   => auth_can('purchase_order', 'W'),
+            'canApprove' => auth_can('po_approve', 'W'),
             'canReceive' => auth_can('goods_receipt', 'W'),
         ]);
     }
 
-    /** POST /purchase-orders/{id}/approve */
     public function approve(int $id)
     {
         $result = $this->service()->approve($id, auth_user()['id']);
@@ -114,7 +117,6 @@ class PurchaseOrders extends BaseController
         return redirect()->to('/purchase-orders/' . $id)->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    /** POST /purchase-orders/{id}/cancel */
     public function cancel(int $id)
     {
         $input  = $this->request->getPost(['cancel_reason']);
@@ -132,7 +134,6 @@ class PurchaseOrders extends BaseController
         return $redirect->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
-    /** A3: data yang dituju sudah tidak ada. */
     private function notFound()
     {
         return redirect()->to('/purchase-orders')->with('error', config('Purchasing')->messages['not_found']);

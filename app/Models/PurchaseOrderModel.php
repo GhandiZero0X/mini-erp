@@ -193,15 +193,39 @@ class PurchaseOrderModel extends Model
             ->get()->getResultArray();
     }
 
-    /** Pilihan produk untuk form (beserta satuan dan harga beli default), urut nama. */
+    /** Pilihan produk untuk form (beserta satuan, harga beli default, & kapasitas sisa). */
     public function productOptions(): array
     {
-        return $this->db->table('products p')
-            ->select('p.id, p.code, p.name, u.code AS unit, p.purchase_price')
-            ->join('units u', 'u.id = p.unit_id', 'left')
-            ->orderBy('lower(p.name)', 'ASC', false)
-            ->orderBy('p.id', 'ASC')
-            ->get()->getResultArray();
+        return $this->db->query(
+            "SELECT p.id, p.code, p.name, u.code AS unit,
+                    p.purchase_price,
+                    p.max_stock,
+                    CASE
+                        WHEN p.max_stock IS NULL THEN NULL
+                        ELSE GREATEST(0, p.max_stock
+                            - COALESCE(sb.quantity, 0)
+                            - COALESCE((
+                                SELECT SUM(poi.quantity - COALESCE(gr.received, 0))
+                                FROM purchase_order_items poi
+                                JOIN purchase_orders po ON po.id = poi.purchase_order_id
+                                LEFT JOIN (
+                                    SELECT gri.purchase_order_item_id,
+                                            SUM(gri.quantity_received) AS received
+                                    FROM goods_receipt_items gri
+                                    JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
+                                    WHERE gr.status = 'Aktif'
+                                    GROUP BY gri.purchase_order_item_id
+                                ) gr ON gr.purchase_order_item_id = poi.id
+                                WHERE poi.product_id = p.id
+                                AND po.status IN ('Draft', 'Approved')
+                            ), 0)
+                        )
+                    END AS available_room
+            FROM products p
+            JOIN units u ON u.id = p.unit_id
+            LEFT JOIN stock_balances sb ON sb.product_id = p.id
+            ORDER BY lower(p.name) ASC, p.id ASC"
+        )->getResultArray();
     }
 
     public function supplierExists(int $id): bool

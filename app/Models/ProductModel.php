@@ -15,17 +15,14 @@ class ProductModel extends Model
     protected $returnType    = 'array';
     protected $useTimestamps = false;
 
-    /**
-     * Daftar produk + kategori + satuan, 10 baris per halaman, urut nama (NFR-11).
-     * $search mencari di kode atau nama tanpa membedakan huruf besar/kecil (NFR-13).
-     */
     public function listPage(string $search = '', int $perPage = 10): array
     {
         $this->select(
             'products.id, products.code, products.name,
-             products.purchase_price, products.selling_price,
-             c.name AS category_name,
-             u.code AS unit_code, u.name AS unit_name',
+            products.purchase_price, products.selling_price,
+            products.min_stock, products.max_stock,
+            c.name AS category_name,
+            u.code AS unit_code, u.name AS unit_name',
             false
         )
             ->join('categories c', 'c.id = products.category_id', 'left')
@@ -52,8 +49,10 @@ class ProductModel extends Model
     public function findById(int $id): ?array
     {
         $row = $this->db->table('products p')
-            ->select('p.id, p.code, p.name, p.unit_id, p.purchase_price, p.selling_price, p.category_id,
-                      u.code AS unit_code, u.name AS unit_name')
+            ->select('p.id, p.code, p.name, p.unit_id,
+                    p.purchase_price, p.selling_price,
+                    p.min_stock, p.max_stock,
+                    p.category_id, u.code AS unit_code, u.name AS unit_name')
             ->join('units u', 'u.id = p.unit_id', 'left')
             ->where('p.id', $id)
             ->get()->getRowArray();
@@ -64,11 +63,12 @@ class ProductModel extends Model
         $row['id']          = (int) $row['id'];
         $row['category_id'] = (int) $row['category_id'];
         $row['unit_id']     = (int) $row['unit_id'];
+        $row['min_stock']   = (int) $row['min_stock'];                    // ← BARU: normalize
+        $row['max_stock']   = $row['max_stock'] !== null ? (int) $row['max_stock'] : null; // ← BARU
 
         return $row;
     }
 
-    /** Pilihan kategori untuk form, urut nama. */
     public function categoryOptions(): array
     {
         return $this->db->table('categories')->select('id, name')
@@ -76,7 +76,6 @@ class ProductModel extends Model
             ->get()->getResultArray();
     }
 
-    /** Pilihan satuan untuk form, urut nama. */
     public function unitOptions(): array
     {
         return $this->db->table('units')->select('id, code, name')
@@ -86,16 +85,12 @@ class ProductModel extends Model
 
     public function categoryExists(int $id): bool
     {
-        $row = $this->db->table('categories')->select('id')->where('id', $id)->get()->getRowArray();
-
-        return ! empty($row);
+        return ! empty($this->db->table('categories')->select('id')->where('id', $id)->get()->getRowArray());
     }
 
     public function unitExists(int $id): bool
     {
-        $row = $this->db->table('units')->select('id')->where('id', $id)->get()->getRowArray();
-
-        return ! empty($row);
+        return ! empty($this->db->table('units')->select('id')->where('id', $id)->get()->getRowArray());
     }
 
     public function codeExists(string $code, ?int $exceptId = null): bool
@@ -127,16 +122,24 @@ class ProductModel extends Model
     /**
      * Simpan produk baru + baris stok awal 0 dalam satu transaction.
      *
-     * @param array{code:string,name:string,unit_id:int,purchase_price:string,selling_price:string,category_id:int} $d
+     * @param array{
+     *   code:string, name:string, unit_id:int, purchase_price:string,
+     *   selling_price:string, category_id:int, min_stock:int, max_stock:?int
+     * } $d
      */
     public function insertProduct(array $d): int
     {
         $this->db->transBegin();
         try {
             $row = $this->db->query(
-                'INSERT INTO products (code, name, unit_id, purchase_price, selling_price, category_id)
-                 VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
-                [$d['code'], $d['name'], $d['unit_id'], $d['purchase_price'], $d['selling_price'], $d['category_id']]
+                'INSERT INTO products
+                    (code, name, unit_id, purchase_price, selling_price, category_id, min_stock, max_stock)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+                [
+                    $d['code'], $d['name'], $d['unit_id'],
+                    $d['purchase_price'], $d['selling_price'], $d['category_id'],
+                    $d['min_stock'], $d['max_stock'],                   // ← BARU
+                ]
             )->getRowArray();
 
             $id = (int) $row['id'];
@@ -165,6 +168,8 @@ class ProductModel extends Model
             ->set('purchase_price', $d['purchase_price'])
             ->set('selling_price', $d['selling_price'])
             ->set('category_id', $d['category_id'])
+            ->set('min_stock', $d['min_stock'])                             // ← BARU
+            ->set('max_stock', $d['max_stock'])                             // ← BARU (null = tanpa batas)
             ->set('updated_at', 'now()', false);
 
         if (array_key_exists('code', $d)) {
@@ -176,11 +181,6 @@ class ProductModel extends Model
         return $this->db->affectedRows();
     }
 
-    /**
-     * Hapus produk bila belum dipakai (VR-15, BR-09).
-     *
-     * @return string 'ok' | 'not_found' | 'in_use'
-     */
     public function deleteIfUnused(int $id): string
     {
         $this->db->transBegin();
@@ -204,5 +204,102 @@ class ProductModel extends Model
             $this->db->transRollback();
             throw $e;
         }
+    }
+
+    /**
+     * Produk dengan stok di bawah/sama dengan batas minimum → perlu PO.
+     */
+    public function listNearMin(int $limit = 20): array
+    {
+        return $this->db->query(
+            'SELECT p.id, p.code, p.name, u.code AS unit,
+                    p.min_stock, p.max_stock, p.purchase_price,
+                    COALESCE(sb.quantity, 0)::int AS current_stock
+             FROM products p
+             LEFT JOIN units u ON u.id = p.unit_id
+             LEFT JOIN stock_balances sb ON sb.product_id = p.id
+             WHERE p.min_stock > 0
+               AND COALESCE(sb.quantity, 0) <= p.min_stock
+             ORDER BY (p.min_stock - COALESCE(sb.quantity, 0)) DESC, p.name ASC
+             LIMIT ?',
+            [$limit]
+        )->getResultArray();
+    }
+
+    /**
+     * Produk dengan stok mendekati (≥80%) atau sudah di batas atas.
+     */
+    public function listNearMax(int $limit = 20): array
+    {
+        return $this->db->query(
+            'SELECT p.id, p.code, p.name, u.code AS unit,
+                    p.min_stock, p.max_stock,
+                    COALESCE(sb.quantity, 0)::int AS current_stock
+             FROM products p
+             LEFT JOIN units u ON u.id = p.unit_id
+             LEFT JOIN stock_balances sb ON sb.product_id = p.id
+             WHERE p.max_stock IS NOT NULL
+               AND p.max_stock > 0
+               AND COALESCE(sb.quantity, 0) >= (p.max_stock * 0.8)
+             ORDER BY (COALESCE(sb.quantity, 0)::numeric / NULLIF(p.max_stock, 0)) DESC, p.name ASC
+             LIMIT ?',
+            [$limit]
+        )->getResultArray();
+    }
+
+    /**
+     * Hitung kapasitas tersisa per produk untuk validasi PO.
+     *
+     * @return array<int, array{current_stock:int, pending_qty:int, max_stock:?int, available_room:int}>
+     */
+    public function stockCapacityFor(array $productIds): array
+    {
+        $productIds = array_values(array_unique(array_map('intval', $productIds)));
+        if ($productIds === []) {
+            return [];
+        }
+
+        $ph = implode(',', array_fill(0, count($productIds), '?'));
+
+        $rows = $this->db->query(
+            "SELECT p.id,
+                    p.max_stock,
+                    COALESCE(sb.quantity, 0)::int AS current_stock,
+                    COALESCE((
+                        SELECT SUM(poi.quantity - COALESCE(gr.received, 0))
+                        FROM purchase_order_items poi
+                        JOIN purchase_orders po ON po.id = poi.purchase_order_id
+                        LEFT JOIN (
+                            SELECT gri.purchase_order_item_id,
+                                   SUM(gri.quantity_received) AS received
+                            FROM goods_receipt_items gri
+                            JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
+                            WHERE gr.status = 'Aktif'
+                            GROUP BY gri.purchase_order_item_id
+                        ) gr ON gr.purchase_order_item_id = poi.id
+                        WHERE poi.product_id = p.id
+                          AND po.status IN ('Draft', 'Approved')
+                    ), 0)::int AS pending_qty
+             FROM products p
+             LEFT JOIN stock_balances sb ON sb.product_id = p.id
+             WHERE p.id IN ({$ph})",
+            $productIds
+        )->getResultArray();
+
+        $result = [];
+        foreach ($rows as $r) {
+            $current = (int) $r['current_stock'];
+            $pending = (int) $r['pending_qty'];
+            $max     = $r['max_stock'] !== null ? (int) $r['max_stock'] : null;
+
+            $result[(int) $r['id']] = [
+                'current_stock'  => $current,
+                'pending_qty'    => $pending,
+                'max_stock'      => $max,
+                'available_room' => $max !== null ? max(0, $max - $current - $pending) : PHP_INT_MAX,
+            ];
+        }
+
+        return $result;
     }
 }

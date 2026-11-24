@@ -6,16 +6,6 @@ use App\Models\ProductModel;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Config\Master as MasterConfig;
 
-/**
- * Logika bisnis UC-04 Mengelola Produk (VR-03, VR-04, VR-05, VR-15, VR-21).
- *
- * Setiap method mengembalikan:
- *   ['ok' => bool, 'code' => 'ok'|'invalid'|'not_found'|'in_use'|'failed',
- *    'errors' => [field => pesan], 'message' => string, 'warning' => string]
- *
- * Teks pesan dibaca dari Config\Master::$messages; kunci yang belum ada memakai DEFAULTS di bawah
- * (teks mengikuti Bab 6 SRS), jadi modul tetap jalan sebelum config dilengkapi.
- */
 class ProductService
 {
     public const DEFAULTS = [
@@ -29,6 +19,12 @@ class ProductService
         'product_category_required' => 'Kategori wajib dipilih.',
         'product_category_invalid'  => 'Kategori tidak valid.',
         'product_price_invalid'     => 'Harga harus berupa angka dan tidak boleh negatif.',
+
+        // ← BARU: pesan validasi batas stok
+        'product_min_stock_invalid'       => 'Batas bawah harus berupa bilangan bulat ≥ 0.',
+        'product_max_stock_invalid'       => 'Batas atas harus berupa bilangan bulat ≥ 0, atau dikosongkan.',
+        'product_max_stock_less_than_min' => 'Batas atas tidak boleh kurang dari batas bawah.',
+
         'product_code_locked'       => 'Kode produk tidak dapat diubah karena sudah digunakan pada transaksi.',
         'product_created'           => 'Produk berhasil ditambahkan.',
         'product_updated'           => 'Produk berhasil diperbarui.',
@@ -171,6 +167,10 @@ class ProductService
         };
     }
 
+    // ------------------------------------------------------------------
+    // Validasi & normalisasi (murni, mudah diuji)
+    // ------------------------------------------------------------------
+
     public static function validateFields(array $in, array $msg): array
     {
         $e = [];
@@ -201,6 +201,21 @@ class ProductService
             }
         }
 
+        // ← BARU: validasi min_stock
+        // clean() sudah memastikan min_stock bertipe int (dari cast), jadi tinggal cek >= 0
+        if ($in['min_stock'] < 0) {
+            $e['min_stock'] = $msg['product_min_stock_invalid'];
+        }
+
+        // ← BARU: validasi max_stock (boleh kosong = tanpa batas atas)
+        if ($in['max_stock'] !== '') {
+            if (! ctype_digit((string) $in['max_stock'])) {
+                $e['max_stock'] = $msg['product_max_stock_invalid'];
+            } elseif ((int) $in['max_stock'] < $in['min_stock']) {
+                $e['max_stock'] = $msg['product_max_stock_less_than_min'];
+            }
+        }
+
         return $e;
     }
 
@@ -209,6 +224,7 @@ class ProductService
         return (bool) preg_match('/^\d{1,13}(\.\d{1,2})?$/', $v);
     }
 
+    /** Samakan tipe dan buang spasi di tepi; nama dirapatkan spasinya. */
     public static function clean(array $input): array
     {
         return [
@@ -218,9 +234,12 @@ class ProductService
             'purchase_price' => trim((string) ($input['purchase_price'] ?? '')),
             'selling_price'  => trim((string) ($input['selling_price'] ?? '')),
             'category_id'    => (int) ($input['category_id'] ?? 0),
+            'min_stock'      => max(0, (int) ($input['min_stock'] ?? 0)),
+            'max_stock'      => trim((string) ($input['max_stock'] ?? '')),
         ];
     }
 
+    /** ← BARU: payload sekarang mengirim min_stock & max_stock ke Model. */
     private function payload(array $in): array
     {
         return [
@@ -230,6 +249,8 @@ class ProductService
             'purchase_price' => $in['purchase_price'],
             'selling_price'  => $in['selling_price'],
             'category_id'    => $in['category_id'],
+            'min_stock'      => $in['min_stock'],
+            'max_stock'      => $in['max_stock'] === '' ? null : (int) $in['max_stock'],
         ];
     }
 

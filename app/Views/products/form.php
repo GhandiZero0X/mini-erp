@@ -1,13 +1,13 @@
 <?php
 /**
- * UI-04 Produk (form tambah/ubah). Variabel: $product (null bila tambah), $categories, $action, $errors, $old.
- * CATATAN: samakan nama layout/section dengan Views/categories/form.php milik Anda.
- * Tidak ada kolom stok: produk baru berstok 0, stok hanya berubah lewat GR dan Delivery (BR-06).
+ * UI-04 Produk (form tambah/ubah). Variabel: $product, $categories, $units, $action, $errors, $old.
+ * Produk baru berstok 0; stok hanya berubah lewat GR dan Delivery (BR-06).
+ * Batas bawah & atas adalah parameter untuk reorder alert, bukan saldo stok.
  */
 $this->extend('layouts/main');
 
 $isEdit = $product !== null;
-$locked = $isEdit && ! empty($product['code_locked']);
+$locked = $isEdit && !empty($product['code_locked']);
 
 $val = static function (string $key) use ($old, $product): string {
     if (array_key_exists($key, $old)) {
@@ -21,28 +21,28 @@ $val = static function (string $key) use ($old, $product): string {
     return $v;
 };
 
-$err = static fn (string $f): string => isset($errors[$f]) ? '<div class="invalid-feedback d-block">' . esc($errors[$f]) . '</div>' : '';
-$cls = static fn (string $f): string => isset($errors[$f]) ? ' is-invalid' : '';
+$err = static fn(string $f): string => isset($errors[$f]) ? '<div class="invalid-feedback d-block">' . esc($errors[$f]) . '</div>' : '';
+$cls = static fn(string $f): string => isset($errors[$f]) ? ' is-invalid' : '';
 
 $selectedCategory = (int) $val('category_id');
-$selectedUnit     = (int) $val('unit_id');
+$selectedUnit = (int) $val('unit_id');
 ?>
 <?= $this->section('content') ?>
 
 <h1 class="h4 mb-3"><?= esc($title) ?></h1>
 
 <?php if ($categories === []): ?>
-<div class="alert alert-warning">
-    Belum ada kategori. Tambahkan kategori terlebih dahulu sebelum membuat produk.
-    <a href="<?= site_url('categories/new') ?>" class="alert-link">Tambah kategori</a>
-</div>
+    <div class="alert alert-warning">
+        Belum ada kategori. Tambahkan kategori terlebih dahulu sebelum membuat produk.
+        <a href="<?= site_url('categories/new') ?>" class="alert-link">Tambah kategori</a>
+    </div>
 <?php endif; ?>
 
 <?php if ($units === []): ?>
-<div class="alert alert-warning">
-    Belum ada satuan. Tambahkan satuan terlebih dahulu sebelum membuat produk.
-    <a href="<?= site_url('units/new') ?>" class="alert-link">Tambah satuan</a>
-</div>
+    <div class="alert alert-warning">
+        Belum ada satuan. Tambahkan satuan terlebih dahulu sebelum membuat produk.
+        <a href="<?= site_url('units/new') ?>" class="alert-link">Tambah satuan</a>
+    </div>
 <?php endif; ?>
 
 <form method="post" action="<?= esc($action, 'attr') ?>" class="card card-body" style="max-width: 720px" novalidate>
@@ -51,19 +51,17 @@ $selectedUnit     = (int) $val('unit_id');
     <div class="mb-3">
         <label for="code" class="form-label">Kode <span class="text-danger">*</span></label>
         <input type="text" id="code" name="code" maxlength="30" autocomplete="off"
-            class="form-control<?= $cls('code') ?>" value="<?= esc($val('code'), 'attr') ?>"
-            <?= $locked ? 'readonly' : 'autofocus' ?>>
+            class="form-control<?= $cls('code') ?>" value="<?= esc($val('code'), 'attr') ?>" <?= $locked ? 'readonly' : 'autofocus' ?>>
         <?= $err('code') ?>
         <?php if ($locked): ?>
-        <div class="form-text">Kode tidak dapat diubah karena produk sudah digunakan pada transaksi.</div>
+            <div class="form-text">Kode tidak dapat diubah karena produk sudah digunakan pada transaksi.</div>
         <?php endif; ?>
     </div>
 
     <div class="mb-3">
         <label for="name" class="form-label">Nama <span class="text-danger">*</span></label>
         <input type="text" id="name" name="name" maxlength="150" autocomplete="off"
-            class="form-control<?= $cls('name') ?>" value="<?= esc($val('name'), 'attr') ?>"
-            <?= $locked ? 'autofocus' : '' ?>>
+            class="form-control<?= $cls('name') ?>" value="<?= esc($val('name'), 'attr') ?>" <?= $locked ? 'autofocus' : '' ?>>
         <?= $err('name') ?>
     </div>
 
@@ -73,9 +71,9 @@ $selectedUnit     = (int) $val('unit_id');
             <select id="unit_id" name="unit_id" class="form-select<?= $cls('unit_id') ?>">
                 <option value="">- Pilih satuan -</option>
                 <?php foreach ($units as $u): ?>
-                <option value="<?= (int) $u['id'] ?>" <?= $selectedUnit === (int) $u['id'] ? 'selected' : '' ?>>
-                    <?= esc($u['code'] . ' - ' . $u['name']) ?>
-                </option>
+                    <option value="<?= (int) $u['id'] ?>" <?= $selectedUnit === (int) $u['id'] ? 'selected' : '' ?>>
+                        <?= esc($u['code'] . ' - ' . $u['name']) ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
             <?= $err('unit_id') ?>
@@ -85,9 +83,9 @@ $selectedUnit     = (int) $val('unit_id');
             <select id="category_id" name="category_id" class="form-select<?= $cls('category_id') ?>">
                 <option value="">- Pilih kategori -</option>
                 <?php foreach ($categories as $c): ?>
-                <option value="<?= (int) $c['id'] ?>" <?= $selectedCategory === (int) $c['id'] ? 'selected' : '' ?>>
-                    <?= esc($c['name']) ?>
-                </option>
+                    <option value="<?= (int) $c['id'] ?>" <?= $selectedCategory === (int) $c['id'] ? 'selected' : '' ?>>
+                        <?= esc($c['name']) ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
             <?= $err('category_id') ?>
@@ -110,9 +108,26 @@ $selectedUnit     = (int) $val('unit_id');
         </div>
     </div>
 
+    <!-- ← BARU: batas bawah & atas untuk pengawasan stok -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="min_stock" class="form-label">Batas Bawah (Minimum)</label>
+            <input type="number" min="0" id="min_stock" name="min_stock" class="form-control<?= $cls('min_stock') ?>"
+                value="<?= esc($val('min_stock'), 'attr') ?>" placeholder="0">
+            <?= $err('min_stock') ?>
+            <div class="form-text">Stok di bawah/sama dengan angka ini → perlu Purchase Order.</div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="max_stock" class="form-label">Batas Atas (Maksimum)</label>
+            <input type="number" min="0" id="max_stock" name="max_stock" class="form-control<?= $cls('max_stock') ?>"
+                value="<?= esc($val('max_stock'), 'attr') ?>" placeholder="Kosongkan jika tidak ada batas">
+            <?= $err('max_stock') ?>
+            <div class="form-text">Kosongkan bila produk tidak memiliki batas atas.</div>
+        </div>
+    </div>
+
     <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary"
-            <?= ($categories === [] || $units === []) ? 'disabled' : '' ?>>Simpan</button>
+        <button type="submit" class="btn btn-primary" <?= ($categories === [] || $units === []) ? 'disabled' : '' ?>>Simpan</button>
         <a href="<?= site_url('products') ?>" class="btn btn-secondary">Batal</a>
     </div>
 </form>

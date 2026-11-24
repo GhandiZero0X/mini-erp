@@ -2,45 +2,38 @@
 
 namespace App\Services;
 
+use App\Models\ProductModel;
 use App\Models\PurchaseOrderModel;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Config\Documents;
 
-/**
- * Logika bisnis UC-07 Membuat Purchase Order dan UC-08 Menyetujui Purchase Order
- * (VR-06 s.d. VR-09, VR-25, BR-01, BR-08, BR-10).
- *
- * Setiap method aksi mengembalikan:
- *   ['ok' => bool, 'code' => 'ok'|'invalid'|'not_found'|'not_draft'|'failed',
- *    'errors' => [...], 'message' => string, 'id' => ?int]
- *
- * Bentuk 'errors' untuk form PO:
- *   ['supplier_id' => pesan, 'po_date' => pesan, 'items' => pesan umum,
- *    'item_rows' => [indeksBaris => ['product_id' => pesan, 'quantity' => pesan, 'unit_price' => pesan]]]
- *
- * Perhitungan uang memakai bilangan bulat sen (tanpa float) agar total persis (BR-10).
- */
 class PurchaseOrderService
 {
-    /** Batas NUMERIC(15,2) dalam sen: 9.999.999.999.999,99. */
     private const MAX_CENTS = 999_999_999_999_999;
 
     private const MAX_ROWS = 100;
 
     private PurchaseOrderModel $orders;
+    private ProductModel $products;
     private array $msg;
 
-    public function __construct(?PurchaseOrderModel $orders = null, ?\Config\Purchasing $cfg = null)
-    {
-        $this->orders = $orders ?? new PurchaseOrderModel();
-        $this->msg    = ($cfg ?? config('Purchasing'))->messages;
+    public function __construct(
+        ?PurchaseOrderModel $orders = null,
+        ?\Config\Purchasing $cfg = null,
+        ?ProductModel $products = null
+    ) {
+        $this->orders   = $orders   ?? new PurchaseOrderModel();
+        $this->products = $products ?? new ProductModel();
+        $this->msg      = array_merge(
+            [
+                // Fallback bila belum ditambahkan ke Config\Purchasing::$messages
+                'stock_at_max'      => 'Stok produk sudah mencapai batas maksimal, tidak dapat dipesan.',
+                'stock_exceeds_max' => 'Jumlah melebihi kapasitas. Sisa yang dapat dipesan: %d (maks %d, sudah ada %d).',
+            ],
+            ($cfg ?? config('Purchasing'))->messages
+        );
     }
 
-    /**
-     * @param bool $receivableOnly true untuk Staf Gudang: hanya PO Approved yang belum diterima penuh (UI-07)
-     *
-     * @return array{rows: array, pager: mixed}
-     */
     public function listPage(string $search = '', string $status = '', bool $receivableOnly = false): array
     {
         if ($receivableOnly) {
@@ -58,7 +51,6 @@ class PurchaseOrderService
         return ['rows' => $rows, 'pager' => $this->orders->pager];
     }
 
-    /** Header + item + sisa kuantitas (dipesan - diterima) untuk halaman detail (UI-09). */
     public function find(int $id): ?array
     {
         $po = $this->orders->findById($id);
@@ -76,13 +68,11 @@ class PurchaseOrderService
 
         $po['items']      = $items;
         $po['receipts']   = $this->orders->receiptsOf($id);
-        // Dapat diterima barangnya: Approved dan masih ada sisa (BR-02, VR-10)
         $po['receivable'] = $po['status'] === Documents::PO_APPROVED && $remaining > 0;
 
         return $po;
     }
 
-    /** Pilihan supplier dan produk untuk form. */
     public function formData(): array
     {
         return [
@@ -91,12 +81,13 @@ class PurchaseOrderService
         ];
     }
 
-    /** Buat PO Draft beserta itemnya (UC-07 langkah 6-9). */
+    /** Buat PO Draft beserta itemnya (UC-07). */
     public function create(array $input, int $userId): array
     {
         $in     = self::clean($input);
         $errors = self::validateFields($in, $this->msg);
         $errors = $this->checkReferences($in, $errors);
+        $errors = $this->checkStockLimits($in, $errors);           // ← BARU
 
         if ($errors !== []) {
             return $this->invalid($errors);
@@ -107,7 +98,6 @@ class PurchaseOrderService
         try {
             $saved = $this->orders->createWithItems($header, $items);
         } catch (DatabaseException $e) {
-            // Rollback penuh sudah dilakukan model (A6). Cek dulu apakah supplier/produk dihapus di sela proses.
             $errors = $this->checkReferences($in, []);
             if ($errors !== []) {
                 return $this->invalid($errors);
@@ -123,7 +113,6 @@ class PurchaseOrderService
         return $r;
     }
 
-    /** Setujui PO Draft (UC-08). */
     public function approve(int $id, int $userId): array
     {
         try {
@@ -131,19 +120,18 @@ class PurchaseOrderService
         } catch (DatabaseException $e) {
             log_message('error', 'Gagal menyetujui Purchase Order: ' . $e->getMessage());
 
-            return $this->failure('save_failed');                                // A5
+            return $this->failure('save_failed');
         }
 
         return match ($status) {
             'ok'        => $this->success('po_approved'),
-            'not_found' => $this->failure('not_found', 'not_found'),             // A3
-            'not_draft' => $this->failure('approve_not_draft', 'not_draft'),     // A1, VR-25
+            'not_found' => $this->failure('not_found', 'not_found'),
+            'not_draft' => $this->failure('approve_not_draft', 'not_draft'),
             'no_items'  => $this->failure('items_required', 'invalid'),
             default     => $this->failure('save_failed'),
         };
     }
 
-    /** Batalkan PO Draft atau Approved tanpa penerimaan barang aktif (UC-10). */
     public function cancel(int $id, array $input, int $userId): array
     {
         $reason = trim((string) ($input['cancel_reason'] ?? ''));
@@ -170,16 +158,8 @@ class PurchaseOrderService
         };
     }
 
-    // ------------------------------------------------------------------
-    // Validasi & perhitungan (murni, tanpa database, mudah diuji)
-    // ------------------------------------------------------------------
+    // ---------------- Validasi & perhitungan (murni) ----------------
 
-    /**
-     * Samakan tipe & buang spasi. Baris yang benar-benar kosong (produk dan kuantitas kosong)
-     * diabaikan; indeks baris asli dipertahankan agar pesan error tampil di baris yang tepat.
-     *
-     * @return array{supplier_id:int, po_date:string, rows: array<int|string, array{product_id:int,quantity:string,unit_price:string}>}
-     */
     public static function clean(array $input): array
     {
         $rows = [];
@@ -192,7 +172,7 @@ class PurchaseOrderService
             $product = trim((string) ($r['product_id'] ?? ''));
             $qty     = trim((string) ($r['quantity'] ?? ''));
             if ($product === '' && $qty === '') {
-                continue; // baris kosong yang tidak diisi
+                continue;
             }
             $rows[$idx] = [
                 'product_id' => ctype_digit($product) ? (int) $product : 0,
@@ -210,20 +190,19 @@ class PurchaseOrderService
         ];
     }
 
-    /** @return array<string,mixed> pesan error (kosong bila valid) */
     public static function validateFields(array $in, array $msg): array
     {
         $e = [];
 
         if ($in['supplier_id'] <= 0) {
-            $e['supplier_id'] = $msg['supplier_required'];                       // VR-06
+            $e['supplier_id'] = $msg['supplier_required'];
         }
         if (! self::isValidDate($in['po_date'])) {
             $e['po_date'] = $msg['date_invalid'];
         }
 
         if ($in['rows'] === []) {
-            $e['items'] = $msg['items_required'];                                // VR-07
+            $e['items'] = $msg['items_required'];
         } elseif (count($in['rows']) > self::MAX_ROWS) {
             $e['items'] = $msg['items_max'];
         }
@@ -242,10 +221,10 @@ class PurchaseOrderService
             }
 
             if (! self::isValidQuantity($r['quantity'])) {
-                $re['quantity'] = $msg['qty_invalid'];                           // VR-08
+                $re['quantity'] = $msg['qty_invalid'];
             }
             if (! self::isValidPrice($r['unit_price'])) {
-                $re['unit_price'] = $msg['price_invalid'];                       // VR-09
+                $re['unit_price'] = $msg['price_invalid'];
             }
 
             if ($re !== []) {
@@ -262,13 +241,11 @@ class PurchaseOrderService
         return $e;
     }
 
-    /** Bilangan bulat > 0 dan muat di kolom integer. */
     public static function isValidQuantity(string $v): bool
     {
         return (bool) preg_match('/^[1-9]\d{0,9}$/', $v) && (int) $v <= 2147483647;
     }
 
-    /** Wajib, numerik, >= 0, maksimal 2 desimal (titik), muat di NUMERIC(15,2). */
     public static function isValidPrice(string $v): bool
     {
         return (bool) preg_match('/^\d{1,13}(\.\d{1,2})?$/', $v);
@@ -279,7 +256,6 @@ class PurchaseOrderService
         return (bool) preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
     }
 
-    /** "1700000.5" menjadi 170000050 (sen). Harus sudah lolos isValidPrice(). */
     public static function toCents(string $price): int
     {
         [$int, $dec] = array_pad(explode('.', $price, 2), 2, '');
@@ -292,7 +268,6 @@ class PurchaseOrderService
         return sprintf('%d.%02d', intdiv($cents, 100), $cents % 100);
     }
 
-    /** Subtotal satu baris dalam sen, atau null bila melebihi batas kolom (tanpa risiko overflow). */
     public static function lineCents(int $qty, int $priceCents): ?int
     {
         if ($qty > 0 && $priceCents > intdiv(self::MAX_CENTS, $qty)) {
@@ -302,7 +277,6 @@ class PurchaseOrderService
         return $qty * $priceCents;
     }
 
-    /** Total semua baris dalam sen (BR-10), atau null bila ada yang melebihi batas. Baris harus sudah valid. */
     public static function totalCents(array $rows): ?int
     {
         $total = 0;
@@ -320,11 +294,6 @@ class PurchaseOrderService
         return $total;
     }
 
-    /**
-     * Bentuk data siap simpan. Subtotal dan total dihitung ulang di server, bukan dari kiriman form (BR-10).
-     *
-     * @return array{0: array, 1: list<array>} [header, items]
-     */
     public static function buildPayload(array $in, int $userId): array
     {
         $items = [];
@@ -356,7 +325,6 @@ class PurchaseOrderService
 
     // ------------------------------------------------------------------
 
-    /** Pastikan supplier dan produk yang dipilih masih ada di master data (UC-07 A5). */
     private function checkReferences(array $in, array $errors): array
     {
         if (! isset($errors['supplier_id']) && $in['supplier_id'] > 0 && ! $this->orders->supplierExists($in['supplier_id'])) {
@@ -368,6 +336,60 @@ class PurchaseOrderService
         foreach ($in['rows'] as $idx => $r) {
             if ($r['product_id'] > 0 && ! isset($existing[$r['product_id']])) {
                 $errors['item_rows'][$idx]['product_id'] = $this->msg['product_invalid'];
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Pastikan total (current_stock + pending_po + qty_baru) tidak melewati max_stock.
+     * Produk dengan max_stock = NULL (tanpa batas atas) dilewati.
+     */
+    private function checkStockLimits(array $in, array $errors): array
+    {
+        if ($in['rows'] === [] || isset($errors['items'])) {
+            return $errors;
+        }
+
+        $ids = array_filter(array_column($in['rows'], 'product_id'), static fn ($v) => $v > 0);
+        if ($ids === []) {
+            return $errors;
+        }
+
+        $capacity = $this->products->stockCapacityFor($ids);
+
+        foreach ($in['rows'] as $idx => $r) {
+            $pid = (int) $r['product_id'];
+            if ($pid <= 0 || ! isset($capacity[$pid])) {
+                continue;
+            }
+
+            $cap = $capacity[$pid];
+            if ($cap['max_stock'] === null) {
+                continue; // tanpa batas atas
+            }
+
+            // Baris yang sudah gagal di validasi lain tidak perlu dicek ulang
+            if (isset($errors['item_rows'][$idx]['quantity'])
+                || isset($errors['item_rows'][$idx]['product_id'])) {
+                continue;
+            }
+
+            $qty = (int) $r['quantity'];
+
+            if ($cap['available_room'] <= 0) {
+                $errors['item_rows'][$idx]['quantity'] = $this->msg['stock_at_max'];
+                continue;
+            }
+
+            if ($qty > $cap['available_room']) {
+                $errors['item_rows'][$idx]['quantity'] = sprintf(
+                    $this->msg['stock_exceeds_max'],
+                    $cap['available_room'],
+                    $cap['max_stock'],
+                    $cap['current_stock'] + $cap['pending_qty']
+                );
             }
         }
 
