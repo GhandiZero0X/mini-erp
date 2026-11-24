@@ -70,14 +70,16 @@ class DeliveryModel extends Model
     public function itemsOf(int $deliveryId): array
     {
         $rows = $this->db->query(
-            'SELECT di.id, p.code, p.name, p.unit, soi.quantity AS ordered, di.quantity_delivered
-             FROM delivery_items di
-             JOIN sales_order_items soi ON soi.id = di.sales_order_item_id
-             JOIN products p ON p.id = soi.product_id
-             WHERE di.delivery_id = ?
-             ORDER BY di.id',
+            'SELECT di.id, p.code, p.name, u.code AS unit, soi.quantity AS ordered, di.quantity_delivered
+            FROM delivery_items di
+            JOIN sales_order_items soi ON soi.id = di.sales_order_item_id
+            JOIN products p ON p.id = soi.product_id
+            JOIN units u ON u.id = p.unit_id
+            WHERE di.delivery_id = ?
+            ORDER BY di.id',
             [$deliveryId]
         )->getResultArray();
+
         foreach ($rows as &$r) {
             $r['ordered']            = (int) $r['ordered'];
             $r['quantity_delivered'] = (int) $r['quantity_delivered'];

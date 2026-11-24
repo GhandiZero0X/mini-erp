@@ -98,18 +98,20 @@ class SalesOrderModel extends Model
     {
         $active    = Documents::DL_ACTIVE;
         $delivered = "(SELECT COALESCE(SUM(di.quantity_delivered), 0)
-                       FROM delivery_items di
-                       JOIN deliveries d ON d.id = di.delivery_id
-                       WHERE di.sales_order_item_id = soi.id AND d.status = '{$active}')";
+                    FROM delivery_items di
+                    JOIN deliveries d ON d.id = di.delivery_id
+                    WHERE di.sales_order_item_id = soi.id AND d.status = '{$active}')";
         $stock     = 'COALESCE((SELECT sb.quantity FROM stock_balances sb WHERE sb.product_id = soi.product_id), 0)';
 
         $rows = $this->db->query(
-            "SELECT soi.id, soi.product_id, p.code, p.name, p.unit, soi.quantity, soi.unit_price, soi.subtotal,
+            "SELECT soi.id, soi.product_id, p.code, p.name, u.code AS unit,
+                    soi.quantity, soi.unit_price, soi.subtotal,
                     {$delivered} AS delivered, {$stock} AS stock_available
-             FROM sales_order_items soi
-             JOIN products p ON p.id = soi.product_id
-             WHERE soi.sales_order_id = ?
-             ORDER BY soi.id",
+            FROM sales_order_items soi
+            JOIN products p ON p.id = soi.product_id
+            JOIN units u ON u.id = p.unit_id
+            WHERE soi.sales_order_id = ?
+            ORDER BY soi.id",
             [$soId]
         )->getResultArray();
 
@@ -151,10 +153,11 @@ class SalesOrderModel extends Model
     public function productOptions(): array
     {
         return $this->db->query(
-            'SELECT p.id, p.code, p.name, p.unit,
-                    p.selling_price AS sale_price,          -- ← fix: alias agar cocok dengan view
+            'SELECT p.id, p.code, p.name, u.code AS unit,
+                    p.selling_price AS sale_price,
                     COALESCE(sb.quantity, 0) AS stock_available
             FROM products p
+            JOIN units u ON u.id = p.unit_id
             LEFT JOIN stock_balances sb ON sb.product_id = p.id
             ORDER BY lower(p.name) ASC, p.id ASC'
         )->getResultArray();
