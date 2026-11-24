@@ -59,29 +59,57 @@ Table categories {
   updated_at timestamptz [not null, default: `now()`]
 }
 
+Table units {
+  id integer [pk, increment]
+  code varchar(20) [not null, unique, note: 'Kode satuan, mis. PCS, KG, BOX']
+  name varchar(50) [not null, note: 'Nama satuan']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    name
+  }
+}
+
 Table products {
   id integer [pk, increment]
   code varchar(30) [not null, unique, note: 'BR-11, VR-03; terkunci bila sudah dipakai transaksi (VR-21)']
   name varchar(150) [not null]
-  unit varchar(20) [not null, note: 'Satuan, mis. pcs, box']
+  unit_id integer [not null, note: 'FK ke master units']
   purchase_price numeric(15,2) [not null, default: 0, note: 'Default harga satuan di PO']
   selling_price numeric(15,2) [not null, default: 0, note: 'Default harga satuan di SO']
   category_id integer [not null]
+
+  // ─── Batas stok untuk reorder alert & blocking PO ─────────
+  min_stock integer [not null, default: 0, note: 'Batas bawah; stok <= min → produk muncul di dashboard purchasing sebagai "perlu PO"']
+  max_stock integer [note: 'Batas atas; NULL = tanpa batas. Stok + pending_po + qty_baru tidak boleh melebihi']
+
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
   indexes {
     `lower(code)` [unique, name: 'uq_products_code_lower', note: 'Unik tanpa membedakan huruf besar/kecil']
     category_id
+    unit_id
     name
+    max_stock [name: 'idx_products_max_stock', note: 'Mempercepat query dashboard "mendekati batas atas"']
   }
 
   checks {
     `purchase_price >= 0` [name: 'chk_products_purchase_price']
     `selling_price >= 0` [name: 'chk_products_selling_price']
+    `min_stock >= 0` [name: 'chk_products_min_stock']
+    `max_stock IS NULL OR max_stock >= min_stock` [name: 'chk_products_max_stock']
   }
 
-  Note: 'Tidak ada kolom stok. Stok ada di stock_balances. Produk baru berstok 0.'
+  Note: '''
+    Tidak ada kolom stok (quantity) di sini. Saldo stok ada di stock_balances.
+    min_stock & max_stock adalah parameter untuk:
+    - Dashboard widget "Stok di Bawah Minimum" (ketika quantity <= min_stock)
+    - Dashboard widget "Stok Mendekati Batas Atas" (ketika quantity >= 0.8 * max_stock)
+    - Validasi PO: total (quantity + pending_po + qty_baru) tidak boleh > max_stock
+    max_stock = NULL berarti produk tidak memiliki batas atas dan bisa dipesan berapa saja.
+  '''
 }
 
 Table suppliers {
@@ -112,6 +140,10 @@ Table customers {
   }
 }
 
+
+// ============================================================
+// TRANSAKSI
+// ============================================================
 // ============================================================
 // PURCHASING
 // ============================================================
@@ -357,6 +389,7 @@ Table stock_movements {
 // Master & autentikasi
 Ref fk_users_role: users.role_id > roles.id [delete: restrict]
 Ref fk_products_category: products.category_id > categories.id [delete: restrict]
+Ref fk_products_unit: products.unit_id > units.id [delete: restrict]
 
 // Purchasing
 Ref fk_po_supplier: purchase_orders.supplier_id > suppliers.id [delete: restrict]
@@ -402,6 +435,7 @@ TableGroup master_dan_autentikasi {
   roles
   users
   categories
+  units
   products
   suppliers
   customers
@@ -437,3 +471,6 @@ Records roles(id, code, name) {
   4, 'sales', 'Staf Sales'
   5, 'manajer', 'Manajer'
 }
+
+
+Ref: "deliveries"."delivery_number" -? "deliveries"."id"
