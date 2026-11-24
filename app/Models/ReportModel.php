@@ -34,23 +34,18 @@ class ReportModel extends Model
     // --- Laporan Stok ---
     public function stock(string $start, string $end, int $categoryId = 0): array
     {
-        // Gunakan escape untuk keamanan string tanggal di subquery
         $startDate = $this->db->escape($start);
-        $endDate   = $this->db->escape(date('Y-m-d', strtotime($end . ' +1 day'))); // +1 hari agar inklusif
+        $endDate   = $this->db->escape(date('Y-m-d', strtotime($end . ' +1 day')));
 
         $builder = $this->db->table('products p')
-            ->select("p.code, p.name, p.unit, c.name AS category_name,
-                      -- Stok Awal (sebelum tanggal mulai)
-                      COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_date < {$startDate}), 0) AS stok_awal,
-                      
-                      -- Total Masuk (selama periode)
-                      COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_type = 'masuk' AND sm.movement_date >= {$startDate} AND sm.movement_date < {$endDate}), 0) AS total_masuk,
-                      
-                      -- Total Keluar (selama periode, pakai ABS agar tampil positif)
-                      ABS(COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_type = 'keluar' AND sm.movement_date >= {$startDate} AND sm.movement_date < {$endDate}), 0)) AS total_keluar,
-                      
-                      -- Stok Akhir (sampai akhir periode)
-                      COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_date < {$endDate}), 0) AS stock_akhir")
+            ->select("p.code, p.name,
+                    u.code AS unit,
+                    c.name AS category_name,
+                    COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_date < {$startDate}), 0) AS stok_awal,
+                    COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_type = 'masuk' AND sm.movement_date >= {$startDate} AND sm.movement_date < {$endDate}), 0) AS total_masuk,
+                    ABS(COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_type = 'keluar' AND sm.movement_date >= {$startDate} AND sm.movement_date < {$endDate}), 0)) AS total_keluar,
+                    COALESCE((SELECT SUM(sm.quantity_change) FROM stock_movements sm WHERE sm.product_id = p.id AND sm.movement_date < {$endDate}), 0) AS stock_akhir")
+            ->join('units u', 'u.id = p.unit_id', 'left')
             ->join('categories c', 'c.id = p.category_id', 'left');
 
         if ($categoryId > 0) {
