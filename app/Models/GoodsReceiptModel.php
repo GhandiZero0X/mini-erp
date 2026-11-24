@@ -79,15 +79,17 @@ class GoodsReceiptModel extends Model
     }
 
     /** Item GR beserta produk dan kuantitas dipesan pada PO. */
+    /** Item GR beserta produk dan kuantitas dipesan pada PO. */
     public function itemsOf(int $grId): array
     {
         $rows = $this->db->query(
-            'SELECT gri.id, p.code, p.name, p.unit, poi.quantity AS ordered, gri.quantity_received
-             FROM goods_receipt_items gri
-             JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
-             JOIN products p ON p.id = poi.product_id
-             WHERE gri.goods_receipt_id = ?
-             ORDER BY gri.id',
+            'SELECT gri.id, p.code, p.name, u.code AS unit, poi.quantity AS ordered, gri.quantity_received
+            FROM goods_receipt_items gri
+            JOIN purchase_order_items poi ON poi.id = gri.purchase_order_item_id
+            JOIN products p ON p.id = poi.product_id
+            JOIN units u ON u.id = p.unit_id
+            WHERE gri.goods_receipt_id = ?
+            ORDER BY gri.id',
             [$grId]
         )->getResultArray();
 

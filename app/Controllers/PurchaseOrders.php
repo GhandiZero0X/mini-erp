@@ -23,11 +23,9 @@ class PurchaseOrders extends BaseController
     {
         $search = trim((string) $this->request->getGet('q'));
         $status = trim((string) $this->request->getGet('status'));
-        // Staf Gudang (bisa mencatat GR, tidak bisa membuat PO) melihat PO Approved yang belum diterima penuh (UI-07)
         $receivableOnly = auth_can('goods_receipt', 'W') && ! auth_can('purchase_order', 'W');
         $data           = $this->service()->listPage($search, $status, $receivableOnly);
 
-        // Halaman di luar jangkauan (mis. filter diganti): mundur ke halaman terakhir
         $page = (int) $this->request->getGet('page');
         if ($data['rows'] === [] && $page > 1) {
             $last   = max(1, $data['pager']->getPageCount());
@@ -40,15 +38,16 @@ class PurchaseOrders extends BaseController
         }
 
         return view('purchase_orders/index', [
-            'title'    => 'Purchase Order',
-            'rows'     => $data['rows'],
-            'pager'    => $data['pager'],
-            'search'   => $search,
-            'status'   => $status,
-            'statuses' => config('Documents')->poStatuses,
-            'canWrite' => auth_can('purchase_order', 'W'),
+            'title'          => 'Purchase Order',
+            'rows'           => $data['rows'],
+            'pager'          => $data['pager'],
+            'search'         => $search,
+            'status'         => $status,
+            'statuses'       => config('Documents')->poStatuses,   // ← WAJIB: dipakai view
+            'canWrite'       => auth_can('purchase_order', 'W'),   // ← tombol "Buat PO"
+            'canApprove'     => auth_can('po_approve', 'W'),       // ← tombol "Setujui" (manajer)
             'receivableOnly' => $receivableOnly,
-            'canReceive'     => auth_can('goods_receipt', 'W'),
+            'canReceive'     => auth_can('goods_receipt', 'W'),    // ← tombol "Terima Barang" (gudang)
         ]);
     }
 
@@ -95,9 +94,10 @@ class PurchaseOrders extends BaseController
         }
 
         return view('purchase_orders/detail', [
-            'title'    => 'Detail Purchase Order',
+            'title'      => 'Detail Purchase Order',
             'po'         => $po,
-            'canWrite'   => auth_can('purchase_order', 'W'),
+            'canWrite'   => auth_can('purchase_order', 'W'),   // ← tetap: kontrol batalkan, edit
+            'canApprove' => auth_can('po_approve', 'W'),       // ← BARU: kontrol tombol Setujui
             'canReceive' => auth_can('goods_receipt', 'W'),
         ]);
     }

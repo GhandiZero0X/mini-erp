@@ -8,20 +8,23 @@ $this->extend('layouts/main');
 
 use Config\Documents;
 
-$isDraft     = $po['status'] === Documents::PO_DRAFT;
+$isDraft = $po['status'] === Documents::PO_DRAFT;
 $isCancelled = $po['status'] === Documents::PO_CANCELLED;
 
 // ─── BARU: cek apakah masih ada GR aktif (pembatalan PO diblokir)
 $hasActiveGR = false;
 foreach ($po['receipts'] as $r) {
-    if ($r['status'] === Documents::GR_ACTIVE) { $hasActiveGR = true; break; }
+    if ($r['status'] === Documents::GR_ACTIVE) {
+        $hasActiveGR = true;
+        break;
+    }
 }
 
 // ─── BARU: syarat tombol Batalkan
 $canCancelPO = $canWrite
-    && ! $isCancelled
+    && !$isCancelled
     && in_array($po['status'], [Documents::PO_DRAFT, Documents::PO_APPROVED], true)
-    && ! $hasActiveGR;
+    && !$hasActiveGR;
 ?>
 <?= $this->section('content') ?>
 
@@ -37,7 +40,7 @@ $canCancelPO = $canWrite
             <i class="bi bi-box-arrow-in-down me-1"></i>Terima Barang
         </a>
         <?php endif; ?>
-        <?php if ($canWrite && $isDraft): ?>
+        <?php if ($canApprove && $isDraft): ?>
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal">
             <i class="bi bi-check2-circle me-1"></i>Setujui
         </button>
@@ -162,7 +165,8 @@ $canCancelPO = $canWrite
                     <th>Tanggal</th>
                     <th>Status</th>
                     <th class="text-end">Total Diterima</th>
-                    <?php if ($canReceive): ?><th class="text-end">Aksi</th><?php endif; ?>
+                    <?php if ($canReceive): ?>
+                    <th class="text-end">Aksi</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -184,7 +188,7 @@ $canCancelPO = $canWrite
 </div>
 <?php endif; ?>
 
-<?php if ($canWrite && $isDraft): ?>
+<?php if ($canApprove && $isDraft): ?>
 <!-- Dialog konfirmasi setujui (UC-08 langkah 4) -->
 <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveTitle" aria-hidden="true">
     <div class="modal-dialog">

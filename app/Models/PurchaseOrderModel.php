@@ -155,21 +155,23 @@ class PurchaseOrderModel extends Model
     {
         $received = '0';
         if ($this->db->tableExists('goods_receipt_items') && $this->db->tableExists('goods_receipts')) {
-            // Status GR berasal dari konstanta, bukan input pengguna.
             $active   = Documents::GR_ACTIVE;
             $received = "(SELECT COALESCE(SUM(gri.quantity_received), 0)
-                          FROM goods_receipt_items gri
-                          JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
-                          WHERE gri.purchase_order_item_id = poi.id AND gr.status = '{$active}')";
+                        FROM goods_receipt_items gri
+                        JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
+                        WHERE gri.purchase_order_item_id = poi.id AND gr.status = '{$active}')";
         }
 
         $rows = $this->db->query(
-            "SELECT poi.id, poi.product_id, p.code, p.name, p.unit, poi.quantity, poi.unit_price, poi.subtotal,
+            "SELECT poi.id, poi.product_id, p.code, p.name,
+                    u.code AS unit,                                    -- ← GANTI (dulu p.unit)
+                    poi.quantity, poi.unit_price, poi.subtotal,
                     {$received} AS received
-             FROM purchase_order_items poi
-             JOIN products p ON p.id = poi.product_id
-             WHERE poi.purchase_order_id = ?
-             ORDER BY poi.id",
+            FROM purchase_order_items poi
+            JOIN products p ON p.id = poi.product_id
+            JOIN units u ON u.id = p.unit_id                          -- ← BARU
+            WHERE poi.purchase_order_id = ?
+            ORDER BY poi.id",
             [$poId]
         )->getResultArray();
 
@@ -194,8 +196,11 @@ class PurchaseOrderModel extends Model
     /** Pilihan produk untuk form (beserta satuan dan harga beli default), urut nama. */
     public function productOptions(): array
     {
-        return $this->db->table('products')->select('id, code, name, unit, purchase_price')
-            ->orderBy('lower(name)', 'ASC', false)->orderBy('id', 'ASC')
+        return $this->db->table('products p')
+            ->select('p.id, p.code, p.name, u.code AS unit, p.purchase_price')
+            ->join('units u', 'u.id = p.unit_id', 'left')
+            ->orderBy('lower(p.name)', 'ASC', false)
+            ->orderBy('p.id', 'ASC')
             ->get()->getResultArray();
     }
 

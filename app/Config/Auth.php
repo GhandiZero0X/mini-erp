@@ -58,7 +58,8 @@ class Auth extends BaseConfig
     public array $permissions = [
         'master_data'     => ['admin' => 'W', 'purchasing' => 'R', 'sales' => 'R'],
         'users'           => ['admin' => 'W'],
-        'purchase_order'  => ['purchasing' => 'W', 'gudang' => 'R'],
+        'purchase_order'  => ['purchasing' => 'W', 'gudang' => 'R', 'manajer' => 'R'],
+        'po_approve'      => ['manajer' => 'W'],
         'goods_receipt'   => ['gudang' => 'W'],
         'sales_order'     => ['gudang' => 'R', 'sales' => 'W'],
         'delivery'        => ['gudang' => 'W'],
@@ -80,7 +81,7 @@ class Auth extends BaseConfig
         'purchasing' => 'Membuat dan menyetujui Purchase Order, serta memantau pembelian.',
         'gudang'     => 'Mencatat Goods Receipt dan Delivery, serta memeriksa stok.',
         'sales'      => 'Membuat Sales Order dan memeriksa ketersediaan stok.',
-        'manajer'    => 'Memantau stok dan laporan operasional (hanya melihat).',
+        'manajer'    => 'Menyetujui Purchase Order serta memantau stok dan laporan operasional.',
     ];
 
     /**
@@ -95,7 +96,7 @@ class Auth extends BaseConfig
         ['group' => 'Master Data',  'label' => 'Supplier',           'path' => 'suppliers',        'icon' => 'bi-truck',           'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data supplier.'],
         ['group' => 'Master Data',  'label' => 'Customer',           'path' => 'customers',        'icon' => 'bi-people',          'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data customer.'],
 
-        ['group' => 'Purchasing',   'label' => 'Purchase Order',     'path' => 'purchase-orders',  'icon' => 'bi-cart-plus',       'feature' => 'purchase_order',  'ready' => true, 'desc' => 'Buat & setujui Purchase Order.'],
+        ['group' => 'Purchasing',   'label' => 'Purchase Order',     'path' => 'purchase-orders',  'icon' => 'bi-cart-plus',        'feature' => 'purchase_order', 'ready' => true, 'desc' => 'Buat PO atau setujui PO.'],
         ['group' => 'Purchasing',   'label' => 'Goods Receipt',      'path' => 'goods-receipts',   'icon' => 'bi-box-arrow-in-down','feature' => 'goods_receipt',  'ready' => true, 'desc' => 'Catat penerimaan barang.'],
 
         ['group' => 'Sales',        'label' => 'Sales Order',        'path' => 'sales-orders',     'icon' => 'bi-receipt',         'feature' => 'sales_order',     'ready' => true, 'desc' => 'Buat & pantau Sales Order.'],

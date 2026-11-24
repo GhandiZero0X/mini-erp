@@ -92,9 +92,17 @@ $routes->group('purchase-orders', ['filter' => 'auth:purchase_order'], static fu
 $routes->group('purchase-orders', ['filter' => 'auth:purchase_order,W'], static function ($routes) {
     $routes->get('new', 'PurchaseOrders::new');
     $routes->post('', 'PurchaseOrders::create');
-    $routes->post('(:num)/approve', 'PurchaseOrders::approve/$1');
-    $routes->post('(:num)/cancel',  'PurchaseOrders::cancel/$1');
 });
+$routes->post(
+    'purchase-orders/(:num)/approve',
+    'PurchaseOrders::approve/$1',
+    ['filter' => 'auth:po_approve,W']
+);
+$routes->post(
+    'purchase-orders/(:num)/cancel',
+    'PurchaseOrders::cancel/$1',
+    ['filter' => 'auth:po_cancel,W']
+);
 
 // UC-09 Goods Receipt: hanya Staf Gudang (fitur 'goods_receipt'). Angka pada new/(:num) = id PO yang diterima.
 $routes->group('goods-receipts', ['filter' => 'auth:goods_receipt'], static function ($routes) {
