@@ -21,11 +21,13 @@ class StockMovementModel extends Model
             'stock_movements.id, stock_movements.movement_date, stock_movements.movement_type,
              stock_movements.quantity_change, stock_movements.reference_type,
              stock_movements.reference_id, stock_movements.reference_number, stock_movements.notes,
-             p.code, p.name AS product_name, p.unit,
+             p.code, p.name AS product_name,
+             un.code AS unit,
              u.full_name AS created_by_name',
             false
         )
             ->join('products p', 'p.id = stock_movements.product_id')
+            ->join('units un', 'un.id = p.unit_id', 'left')
             ->join('users u', 'u.id = stock_movements.created_by');
 
         if ($productId !== null && $productId > 0) {
@@ -35,7 +37,6 @@ class StockMovementModel extends Model
             $this->where('stock_movements.movement_date >=', $startDate);
         }
         if ($endDate !== null && $endDate !== '') {
-            // End inklusif sampai akhir hari → batas eksklusif = end + 1 hari
             $endNext = date('Y-m-d', strtotime($endDate . ' +1 day'));
             $this->where('stock_movements.movement_date <', $endNext);
         }

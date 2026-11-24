@@ -19,11 +19,12 @@ class StockListModel extends Model
     public function listWithStock(string $search = '', int $categoryId = 0, int $perPage = 10): array
     {
         $this->select(
-            'products.id, products.code, products.name, products.unit,
+            'products.id, products.code, products.name, u.code AS unit,
              c.name AS category_name,
              COALESCE(sb.quantity, 0) AS quantity',
             false
         )
+            ->join('units u', 'u.id = products.unit_id', 'left')             // ← BARU
             ->join('stock_balances sb', 'sb.product_id = products.id', 'left')
             ->join('categories c', 'c.id = products.category_id', 'left');
 
