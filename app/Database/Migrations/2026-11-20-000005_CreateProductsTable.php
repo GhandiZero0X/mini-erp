@@ -13,7 +13,7 @@ class CreateProductsTable extends Migration
             'id'             => ['type' => 'INT', 'auto_increment' => true],
             'code'           => ['type' => 'VARCHAR', 'constraint' => 30],
             'name'           => ['type' => 'VARCHAR', 'constraint' => 150],
-            'unit'           => ['type' => 'VARCHAR', 'constraint' => 20],
+            'unit_id'        => ['type' => 'INT'],
             'purchase_price' => ['type' => 'NUMERIC', 'constraint' => '15,2', 'default' => 0],
             'selling_price'  => ['type' => 'NUMERIC', 'constraint' => '15,2', 'default' => 0],
             'category_id'    => ['type' => 'INT'],
@@ -23,11 +23,15 @@ class CreateProductsTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('code', 'uq_products_code');
         $this->forge->addKey('category_id', false, false, 'idx_products_category_id');
+        $this->forge->addKey('unit_id', false, false, 'idx_products_unit_id');   // ← BARU
         $this->forge->addKey('name', false, false, 'idx_products_name');
+
+        // categories sudah ada (000004), units sudah ada (000000) → aman dua-duanya
         $this->forge->addForeignKey('category_id', 'categories', 'id', 'RESTRICT', 'RESTRICT', 'fk_products_category');
+        $this->forge->addForeignKey('unit_id', 'units', 'id', 'RESTRICT', 'RESTRICT', 'fk_products_unit'); // ← BARU
+
         $this->forge->createTable('products');
 
-        // Forge tidak mendukung functional index & CHECK, jadi pakai SQL langsung.
         $this->db->query('CREATE UNIQUE INDEX uq_products_code_lower ON products (lower(code))');
         $this->db->query('ALTER TABLE products ADD CONSTRAINT chk_products_purchase_price CHECK (purchase_price >= 0)');
         $this->db->query('ALTER TABLE products ADD CONSTRAINT chk_products_selling_price CHECK (selling_price >= 0)');

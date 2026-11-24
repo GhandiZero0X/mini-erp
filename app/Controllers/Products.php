@@ -13,7 +13,7 @@ class Products extends BaseController
 {
     private ?ProductService $service = null;
 
-    private const FIELDS = ['code', 'name', 'unit', 'purchase_price', 'selling_price', 'category_id'];
+    private const FIELDS = ['code', 'name', 'unit_id', 'purchase_price', 'selling_price', 'category_id'];
 
     private function service(): ProductService
     {
@@ -54,6 +54,7 @@ class Products extends BaseController
             'title'      => 'Tambah Produk',
             'product'    => null,
             'categories' => $this->service()->categoryOptions(),
+            'units'      => $this->service()->unitOptions(),   // ← BARU
             'action'     => site_url('products'),
             'errors'     => session()->getFlashdata('errors') ?? [],
             'old'        => session()->getFlashdata('old') ?? [],
@@ -85,6 +86,7 @@ class Products extends BaseController
             'title'      => 'Ubah Produk',
             'product'    => $product,
             'categories' => $this->service()->categoryOptions(),
+            'units'      => $this->service()->unitOptions(),   // ← BARU
             'action'     => site_url('products/' . $id),
             'errors'     => session()->getFlashdata('errors') ?? [],
             'old'        => session()->getFlashdata('old') ?? [],

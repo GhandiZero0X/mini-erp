@@ -26,8 +26,8 @@ class Master extends BaseConfig
         'product_code_max'          => 'Kode produk maksimal 30 karakter.',                                     // *
         'product_name_required'     => 'Nama produk wajib diisi.',                                              // VR-04
         'product_name_max'          => 'Nama produk maksimal 150 karakter.',                                    // *
-        'product_unit_required'     => 'Satuan wajib diisi.',                                                   // VR-04
-        'product_unit_max'          => 'Satuan maksimal 20 karakter.',                                          // *
+        'product_unit_required'     => 'Satuan wajib dipilih.',                                                   // VR-04
+        'product_unit_max'          => 'Satuan tidak valid.',                                          // *
         'product_category_required' => 'Kategori wajib diisi.',                                                 // VR-04
         'product_category_invalid'  => 'Kategori tidak valid.',                                                 // VR-04
         'product_price_invalid'     => 'Harga harus berupa angka dan tidak boleh negatif.',                     // VR-05

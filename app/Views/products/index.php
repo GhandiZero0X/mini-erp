@@ -18,7 +18,7 @@ $rupiah = static function ($v): string {
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="h4 mb-0">Produk</h1>
     <?php if ($canWrite): ?>
-    <a href="<?= site_url('products/new') ?>" class="btn btn-primary">Tambah</a>
+        <a href="<?= site_url('products/new') ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     <?php endif; ?>
 </div>
 
@@ -30,7 +30,7 @@ $rupiah = static function ($v): string {
     <div class="col-auto">
         <button type="submit" class="btn btn-outline-primary">Cari</button>
         <?php if ($search !== ''): ?>
-        <a href="<?= site_url('products') ?>" class="btn btn-outline-secondary">Reset</a>
+            <a href="<?= site_url('products') ?>" class="btn btn-outline-secondary">Reset</a>
         <?php endif; ?>
     </div>
 </form>
@@ -45,35 +45,36 @@ $rupiah = static function ($v): string {
                 <th>Satuan</th>
                 <th class="text-end">Harga Beli</th>
                 <th class="text-end">Harga Jual</th>
-                <?php if ($canWrite): ?><th class="text-end">Aksi</th><?php endif; ?>
+                <?php if ($canWrite): ?>
+                    <th class="text-end">Aksi</th><?php endif; ?>
             </tr>
         </thead>
         <tbody>
             <?php if ($rows === []): ?>
-            <tr>
-                <td colspan="<?= $canWrite ? 7 : 6 ?>" class="text-center text-muted py-4">Tidak ada data</td>
-            </tr>
+                <tr>
+                    <td colspan="<?= $canWrite ? 7 : 6 ?>" class="text-center text-muted py-4">Tidak ada data</td>
+                </tr>
             <?php else: ?>
-            <?php foreach ($rows as $row): ?>
-            <tr>
-                <td class="text-nowrap"><?= esc($row['code']) ?></td>
-                <td><?= esc($row['name']) ?></td>
-                <td><?= esc($row['category_name']) ?></td>
-                <td><?= esc($row['unit']) ?></td>
-                <td class="text-end text-nowrap"><?= esc($rupiah($row['purchase_price'])) ?></td>
-                <td class="text-end text-nowrap"><?= esc($rupiah($row['selling_price'])) ?></td>
-                <?php if ($canWrite): ?>
-                <td class="text-end text-nowrap">
-                    <a href="<?= site_url('products/' . $row['id'] . '/edit') ?>"
-                        class="btn btn-sm btn-outline-primary">Ubah</a>
-                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
-                        data-bs-target="#deleteProductModal"
-                        data-action="<?= site_url('products/' . $row['id'] . '/delete') ?>"
-                        data-label="<?= esc($row['code'] . ' - ' . $row['name'], 'attr') ?>">Hapus</button>
-                </td>
-                <?php endif; ?>
-            </tr>
-            <?php endforeach; ?>
+                <?php foreach ($rows as $row): ?>
+                    <tr>
+                        <td class="text-nowrap"><?= esc($row['code']) ?></td>
+                        <td><?= esc($row['name']) ?></td>
+                        <td><?= esc($row['category_name']) ?></td>
+                        <td><?= esc($row['unit_code'] ?? '-') ?></td>
+                        <td class="text-end text-nowrap"><?= esc($rupiah($row['purchase_price'])) ?></td>
+                        <td class="text-end text-nowrap"><?= esc($rupiah($row['selling_price'])) ?></td>
+                        <?php if ($canWrite): ?>
+                            <td class="text-end text-nowrap">
+                                <a href="<?= site_url('products/' . $row['id'] . '/edit') ?>"
+                                    class="btn btn-sm btn-outline-primary">Ubah</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                                    data-bs-target="#deleteProductModal"
+                                    data-action="<?= site_url('products/' . $row['id'] . '/delete') ?>"
+                                    data-label="<?= esc($row['code'] . ' - ' . $row['name'], 'attr') ?>">Hapus</button>
+                            </td>
+                        <?php endif; ?>
+                    </tr>
+                <?php endforeach; ?>
             <?php endif; ?>
         </tbody>
     </table>
@@ -82,37 +83,37 @@ $rupiah = static function ($v): string {
 <?= $pager->links('default', 'bootstrap_full') ?>
 
 <?php if ($canWrite): ?>
-<!-- Dialog konfirmasi hapus (UC-04 langkah 9, A7) -->
-<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductTitle" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="post" action="" id="deleteProductForm" class="modal-content">
-            <?= csrf_field() ?>
-            <div class="modal-header">
-                <h2 class="modal-title fs-5" id="deleteProductTitle">Hapus Produk</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-            </div>
-            <div class="modal-body">
-                Hapus produk <strong id="deleteProductLabel"></strong>? Tindakan ini tidak dapat dibatalkan.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">Hapus</button>
-            </div>
-        </form>
+    <!-- Dialog konfirmasi hapus (UC-04 langkah 9, A7) -->
+    <div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" action="" id="deleteProductForm" class="modal-content">
+                <?= csrf_field() ?>
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="deleteProductTitle">Hapus Produk</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    Hapus produk <strong id="deleteProductLabel"></strong>? Tindakan ini tidak dapat dibatalkan.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger">Hapus</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<script>
-// Dijalankan setelah DOM siap agar aman bila Bootstrap JS dimuat di akhir halaman.
-document.addEventListener('DOMContentLoaded', function() {
-    var modal = document.getElementById('deleteProductModal');
-    modal.addEventListener('show.bs.modal', function(event) {
-        var btn = event.relatedTarget;
-        document.getElementById('deleteProductForm').action = btn.getAttribute('data-action');
-        document.getElementById('deleteProductLabel').textContent = btn.getAttribute('data-label');
-    });
-});
-</script>
+    <script>
+        // Dijalankan setelah DOM siap agar aman bila Bootstrap JS dimuat di akhir halaman.
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = document.getElementById('deleteProductModal');
+            modal.addEventListener('show.bs.modal', function (event) {
+                var btn = event.relatedTarget;
+                document.getElementById('deleteProductForm').action = btn.getAttribute('data-action');
+                document.getElementById('deleteProductLabel').textContent = btn.getAttribute('data-label');
+            });
+        });
+    </script>
 <?php endif; ?>
 
 <?= $this->endSection() ?>

@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call('RoleSeeder');
         $this->call('UserSeeder');
         $this->call('CategorySeeder');
+        $this->call('UnitSeeder');
         $this->call('ProductSeeder');
         $this->call('StockBalanceSeeder');
         $this->call('SupplierSeeder');
