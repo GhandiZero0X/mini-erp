@@ -194,30 +194,42 @@ class PurchaseOrderModel extends Model
             ->get()->getResultArray();
     }
 
-        /** Produk + stok tersedia (Fisik - SO Open) untuk pilihan di form SO. */
+    /**
+     * Produk untuk pilihan di form Purchase Order.
+     * Kolom yang dibutuhkan form.php: id, code, name, unit, purchase_price,
+     * max_stock (NULL = tanpa batas atas) dan available_room (sisa kapasitas
+     * = max_stock - stok - PO yang masih menunggu; NULL bila tanpa batas atas).
+     * Sisa kapasitas diambil dari ProductModel::stockCapacityFor() supaya angkanya
+     * sama dengan pemeriksaan di PurchaseOrderService::checkStockLimits().
+     */
     public function productOptions(): array
     {
-        return $this->db->query(
+        $rows = $this->db->query(
             'SELECT p.id, p.code, p.name, u.code AS unit,
-                    p.selling_price AS sale_price,
-                    -- Stok Fisik
-                    COALESCE(sb.quantity, 0) AS physical_stock,
-                    -- Stok Tersedia: Fisik dikurangi SISA yang BELUM DIKIRIM di SO Open
-                    (COALESCE(sb.quantity, 0) - COALESCE(
-                        (SELECT SUM(soi.quantity - COALESCE(
-                                    (SELECT SUM(di.quantity_delivered) 
-                                     FROM delivery_items di 
-                                     JOIN deliveries d ON d.id = di.delivery_id 
-                                     WHERE di.sales_order_item_id = soi.id AND d.status = \'Aktif\'), 0))
-                         FROM sales_order_items soi 
-                         JOIN sales_orders so ON so.id = soi.sales_order_id 
-                         WHERE soi.product_id = p.id AND so.status = \'Open\'), 0
-                    )) AS stock_available
-            FROM products p
-            JOIN units u ON u.id = p.unit_id
-            LEFT JOIN stock_balances sb ON sb.product_id = p.id
-            ORDER BY lower(p.name) ASC, p.id ASC'
+                    p.purchase_price, p.max_stock
+               FROM products p
+               JOIN units u ON u.id = p.unit_id
+           ORDER BY lower(p.name) ASC, p.id ASC'
         )->getResultArray();
+
+        if ($rows === []) {
+            return [];
+        }
+
+        $capacity = (new ProductModel())->stockCapacityFor(array_map('intval', array_column($rows, 'id')));
+
+        foreach ($rows as &$r) {
+            $r['id']        = (int) $r['id'];
+            $r['max_stock'] = $r['max_stock'] !== null ? (int) $r['max_stock'] : null;
+
+            $cap                = $capacity[$r['id']] ?? null;
+            $r['available_room'] = ($r['max_stock'] !== null && $cap !== null)
+                ? (int) $cap['available_room']
+                : null;
+        }
+        unset($r);
+
+        return $rows;
     }
 
     public function supplierExists(int $id): bool
