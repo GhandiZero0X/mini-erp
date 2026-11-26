@@ -78,7 +78,7 @@ class Auth extends BaseConfig
     /** Keterangan singkat peran untuk dashboard (UI-02). */
     public array $roleDescriptions = [
         'admin'      => 'Mengelola data master dan akun pengguna, serta memantau stok dan laporan.',
-        'purchasing' => 'Membuat dan menyetujui Purchase Order, serta memantau pembelian.',
+        'purchasing' => 'Membuat Purchase Order, memantau persetujuan dan penerimaan barang, serta memantau pembelian.',
         'gudang'     => 'Mencatat Goods Receipt dan Delivery, serta memeriksa stok.',
         'sales'      => 'Membuat Sales Order dan memeriksa ketersediaan stok.',
         'manajer'    => 'Menyetujui Purchase Order serta memantau stok dan laporan operasional.',
