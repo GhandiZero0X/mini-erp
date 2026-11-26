@@ -20,7 +20,6 @@ $priceText = static function ($v): string {
 $err = static fn (string $f): string => isset($errors[$f]) ? '<div class="invalid-feedback d-block">' . esc($errors[$f]) . '</div>' : '';
 $cls = static fn (string $f): string => isset($errors[$f]) ? ' is-invalid' : '';
 
-// Opsi produk dipakai ulang di setiap baris (data-price = harga jual, data-stock = stok saat ini)
 ob_start();
 ?>
 <option value="">- Pilih produk -</option>
@@ -30,88 +29,361 @@ ob_start();
     <?= esc($p['code'] . ' - ' . $p['name']) ?></option>
 <?php endforeach; ?>
 <?php $productOptions = ob_get_clean(); ?>
+
 <?= $this->section('content') ?>
 
-<h1 class="h4 mb-3"><?= esc($title) ?></h1>
+<style>
+/* Prefiks "so-" */
+.so-fhead {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    padding: 1.35rem 1.6rem;
+    color: #fff;
+    background: linear-gradient(125deg, #4338ca 0%, #6d4aed 55%, #0ea5c6 130%);
+    box-shadow: 0 18px 40px -24px rgba(67, 56, 202, .7);
+}
 
-<?php if ($cannotSave): ?>
-<div class="alert alert-warning">
-    Sales Order memerlukan minimal satu customer dan satu produk pada master data.
-    <a href="<?= site_url('customers') ?>" class="alert-link">Customer</a> |
-    <a href="<?= site_url('products') ?>" class="alert-link">Produk</a>
+.so-fhead::before {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    right: -60px;
+    top: -100px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .11);
+}
+
+.so-fhead>* {
+    position: relative;
+    z-index: 1;
+}
+
+.so-fhead-ico {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .2);
+    font-size: 1.35rem;
+}
+
+.so-fhead h2 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    margin: 0;
+}
+
+.so-fhead p {
+    margin: .1rem 0 0;
+    font-size: .86rem;
+    opacity: .88;
+}
+
+.so-fhead .btn-back {
+    border: 0;
+    color: #fff;
+    background: rgba(255, 255, 255, .18);
+}
+
+.so-fhead .btn-back:hover {
+    background: rgba(255, 255, 255, .3);
+}
+
+.so-form {
+    margin-top: 1.1rem;
+}
+
+/* Seksi form */
+.so-sec {
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid var(--app-line);
+}
+
+.so-sec:last-of-type {
+    border-bottom: 0;
+}
+
+.so-sec-head {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.1rem;
+}
+
+.so-sec-ico {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: #eef0ff;
+    color: #4338ca;
+    font-size: 1rem;
+}
+
+.so-sec-head h3 {
+    font-size: .98rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.so-sec-head p {
+    margin: 0;
+    font-size: .8rem;
+    color: var(--app-muted);
+}
+
+.so-form .form-label {
+    font-size: .85rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+}
+
+.so-form .form-text {
+    font-size: .78rem;
+}
+
+.so-form .input-group-text {
+    background: #f8f9fd;
+    border-color: #dfe3ee;
+    color: var(--app-muted);
+    font-weight: 700;
+}
+
+.so-form .form-control[disabled] {
+    background: #f4f5fa;
+    color: #6b7385;
+    cursor: not-allowed;
+}
+
+/* Tabel item */
+.so-items-table th {
+    background: #f8f9fd;
+    color: var(--app-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--app-line);
+    white-space: nowrap;
+}
+
+.so-items-table td {
+    vertical-align: middle;
+    padding: .5rem .5rem;
+}
+
+.so-items-table .form-control-sm,
+.so-items-table .form-select-sm {
+    font-size: .85rem;
+}
+
+/* Footer total di tabel */
+.so-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #fafbff;
+    border-top: 1px solid var(--app-line);
+    border-radius: 0 0 18px 18px;
+}
+
+.so-total-label {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--app-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.so-total-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--app-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Footer action */
+.so-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: 1.15rem 1.75rem;
+    background: #fafbff;
+    border-top: 1px solid var(--app-line);
+    border-radius: 0 0 18px 18px;
+}
+
+/* Alert custom */
+.so-alert-warn {
+    display: flex;
+    gap: .75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    background: #fff4d6;
+    color: #946500;
+    font-size: .86rem;
+    border: 1px solid #fde8b0;
+    margin-bottom: 1rem;
+}
+
+.so-alert-warn i {
+    flex: 0 0 auto;
+    margin-top: .1rem;
+}
+
+.so-alert-warn a {
+    color: #946500;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+@media (max-width: 767.98px) {
+    .so-fhead {
+        padding: 1.1rem;
+    }
+
+    .so-sec,
+    .so-foot {
+        padding-left: 1.1rem;
+        padding-right: 1.1rem;
+    }
+}
+</style>
+
+<div class="so-fhead d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="so-fhead-ico" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+        <div>
+            <h2><?= esc($title) ?></h2>
+            <p>Lengkapi data pesanan dan daftar produk yang akan dijual.</p>
+        </div>
+    </div>
+    <a href="<?= site_url('sales-orders') ?>" class="btn btn-sm btn-back">
+        <i class="bi bi-arrow-left me-1"></i>Kembali ke daftar
+    </a>
 </div>
-<?php endif; ?>
 
-<?php if (session('error')): ?>
-<div class="alert alert-danger py-2"><?= esc(session('error')) ?></div>
-<?php endif; ?>
-
-<form method="post" action="<?= esc($action, 'attr') ?>" class="card card-body" novalidate>
-    <?= csrf_field() ?>
-
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <label class="form-label">Nomor SO</label>
-            <input type="text" class="form-control" value="Otomatis saat disimpan" disabled>
-        </div>
-        <div class="col-md-4 mb-3">
-            <label for="so_date" class="form-label">Tanggal <span class="text-danger">*</span></label>
-            <input type="date" id="so_date" name="so_date" class="form-control<?= $cls('so_date') ?>"
-                value="<?= esc($dateVal, 'attr') ?>">
-            <?= $err('so_date') ?>
-        </div>
-        <div class="col-md-4 mb-3">
-            <label for="customer_id" class="form-label">Customer <span class="text-danger">*</span></label>
-            <select id="customer_id" name="customer_id" class="form-select<?= $cls('customer_id') ?>">
-                <option value="">- Pilih customer -</option>
-                <?php foreach ($customers as $c): ?>
-                <option value="<?= (int) $c['id'] ?>" <?= $customerSel === (int) $c['id'] ? 'selected' : '' ?>>
-                    <?= esc($c['name']) ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
-            <?= $err('customer_id') ?>
+<div class="so-form">
+    <?php if ($cannotSave): ?>
+    <div class="so-alert-warn">
+        <i class="bi bi-exclamation-triangle"></i>
+        <div>
+            Sales Order memerlukan minimal satu customer dan satu produk pada master data.
+            <a href="<?= site_url('customers') ?>">Customer</a> &middot;
+            <a href="<?= site_url('products') ?>">Produk</a>
         </div>
     </div>
+    <?php endif; ?>
 
-    <h2 class="h6 mt-2">Detail Produk</h2>
-    <?= $err('items') ?>
-
-    <div class="table-responsive mb-2">
-        <table class="table table-bordered align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Produk</th>
-                    <th style="width: 80px;">Satuan</th>
-                    <th style="width: 130px;" class="text-end">Kuantitas</th>
-                    <th style="width: 140px;" class="text-center">Stok Tersedia</th>
-                    <th style="width: 180px;" class="text-end">Harga Satuan (Rp)</th>
-                    <th style="width: 170px;" class="text-end">Subtotal</th>
-                    <th style="width: 50px;"></th>
-                </tr>
-            </thead>
-            <tbody id="itemsBody"></tbody>
-            <tfoot>
-                <tr>
-                    <th colspan="5" class="text-end">Total</th>
-                    <th class="text-end text-nowrap" id="grandTotal">Rp 0</th>
-                    <th></th>
-                </tr>
-            </tfoot>
-        </table>
+    <?php if (session('error')): ?>
+    <div class="alert alert-danger py-2 mb-3"><i class="bi bi-exclamation-circle me-1"></i><?= esc(session('error')) ?>
     </div>
+    <?php endif; ?>
 
-    <div class="mb-4">
-        <button type="button" class="btn btn-outline-primary btn-sm" id="addRow">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Baris
-        </button>
-    </div>
+    <form method="post" action="<?= esc($action, 'attr') ?>" class="card" novalidate>
+        <?= csrf_field() ?>
 
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary" <?= $cannotSave ? 'disabled' : '' ?>>Simpan</button>
-        <a href="<?= site_url('sales-orders') ?>" class="btn btn-secondary">Batal</a>
-    </div>
-</form>
+        <!-- 1. Informasi SO -->
+        <section class="so-sec">
+            <div class="so-sec-head">
+                <span class="so-sec-ico"><i class="bi bi-info-circle"></i></span>
+                <div>
+                    <h3>Informasi Sales Order</h3>
+                    <p>Tanggal dan customer tujuan pesanan.</p>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Nomor SO</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                        <input type="text" class="form-control" value="Otomatis saat disimpan" disabled>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="so_date" class="form-label">Tanggal <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                        <input type="date" id="so_date" name="so_date" class="form-control<?= $cls('so_date') ?>"
+                            value="<?= esc($dateVal, 'attr') ?>">
+                    </div>
+                    <?= $err('so_date') ?>
+                </div>
+                <div class="col-md-4">
+                    <label for="customer_id" class="form-label">Customer <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <select id="customer_id" name="customer_id" class="form-select<?= $cls('customer_id') ?>">
+                            <option value="">- Pilih customer -</option>
+                            <?php foreach ($customers as $c): ?>
+                            <option value="<?= (int) $c['id'] ?>"
+                                <?= $customerSel === (int) $c['id'] ? 'selected' : '' ?>>
+                                <?= esc($c['name']) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?= $err('customer_id') ?>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Detail Produk -->
+        <section class="so-sec">
+            <div class="so-sec-head">
+                <span class="so-sec-ico"><i class="bi bi-cart-plus"></i></span>
+                <div>
+                    <h3>Detail Produk</h3>
+                    <p>Tambahkan produk yang dipesan beserta kuantitas dan harga.</p>
+                </div>
+            </div>
+
+            <?= $err('items') ?>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-2 so-items-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 260px;">Produk</th>
+                            <th style="width: 80px;">Satuan</th>
+                            <th style="width: 130px;" class="text-end">Kuantitas</th>
+                            <th style="width: 140px;" class="text-center">Stok</th>
+                            <th style="width: 180px;" class="text-end">Harga Satuan</th>
+                            <th style="width: 170px;" class="text-end">Subtotal</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary btn-sm" id="addRow">
+                <i class="bi bi-plus-lg me-1"></i>Tambah Baris
+            </button>
+        </section>
+
+        <div class="so-total-row">
+            <span class="so-total-label">Total Pesanan</span>
+            <span class="so-total-value" id="grandTotal">Rp 0</span>
+        </div>
+
+        <div class="so-foot">
+            <button type="submit" class="btn btn-primary px-4" <?= $cannotSave ? 'disabled' : '' ?>>
+                <i class="bi bi-check2-circle me-1"></i>Simpan SO
+            </button>
+            <a href="<?= site_url('sales-orders') ?>" class="btn btn-outline-secondary">Batal</a>
+        </div>
+    </form>
+</div>
 
 <template id="rowTemplate">
     <tr class="item-row">
@@ -121,10 +393,10 @@ ob_start();
             </select>
             <div class="invalid-feedback d-block js-err-product_id"></div>
         </td>
-        <td class="js-unit text-muted">-</td>
+        <td class="js-unit text-muted text-center">-</td>
         <td>
             <input type="text" inputmode="numeric" autocomplete="off"
-                class="form-control form-control-sm text-end js-qty" name="items[__IDX__][quantity]">
+                class="form-control form-control-sm text-end js-qty" name="items[__IDX__][quantity]" placeholder="0">
             <div class="invalid-feedback d-block js-err-quantity"></div>
         </td>
         <td class="text-center">
@@ -132,10 +404,11 @@ ob_start();
         </td>
         <td>
             <input type="text" inputmode="decimal" autocomplete="off"
-                class="form-control form-control-sm text-end js-price" name="items[__IDX__][unit_price]">
+                class="form-control form-control-sm text-end js-price" name="items[__IDX__][unit_price]"
+                placeholder="0">
             <div class="invalid-feedback d-block js-err-unit_price"></div>
         </td>
-        <td class="text-end text-nowrap js-subtotal">Rp 0</td>
+        <td class="text-end text-nowrap fw-bold js-subtotal">Rp 0</td>
         <td class="text-center">
             <button type="button" class="btn btn-sm btn-outline-danger js-remove" title="Hapus baris"
                 aria-label="Hapus baris">
@@ -183,14 +456,10 @@ ob_start();
 
     function setError(tr, field, message) {
         var box = tr.querySelector('.js-err-' + field);
-        if (box) {
-            box.textContent = message || '';
-        }
+        if (box) box.textContent = message || '';
         var input = field === 'product_id' ? tr.querySelector('.js-product') :
             field === 'quantity' ? tr.querySelector('.js-qty') : tr.querySelector('.js-price');
-        if (input) {
-            input.classList.toggle('is-invalid', !!message);
-        }
+        if (input) input.classList.toggle('is-invalid', !!message);
     }
 
     function syncUnit(tr) {
@@ -198,7 +467,6 @@ ob_start();
         tr.querySelector('.js-unit').textContent = (opt && opt.dataset.unit) ? opt.dataset.unit : '-';
     }
 
-    // Penanda Cukup/Kurang (SRS: hanya peringatan, TIDAK memblokir submit)
     function checkStock(tr) {
         var opt = tr.querySelector('.js-product').selectedOptions[0];
         var badge = tr.querySelector('.js-stock-badge');
@@ -210,7 +478,7 @@ ob_start();
         var stock = parseInt(opt.dataset.stock || '0', 10);
         var qty = parseInt(tr.querySelector('.js-qty').value || '0', 10);
         if (qty > stock) {
-            badge.textContent = 'Kurang (tersedia ' + stock + ')';
+            badge.textContent = 'Kurang (' + stock + ')';
             badge.className = 'badge text-bg-warning js-stock-badge';
         } else {
             badge.textContent = 'Cukup (' + stock + ')';
@@ -219,13 +487,9 @@ ob_start();
     }
 
     function addRow(idx, data, errs) {
-        if (idx === null || idx === undefined) {
-            idx = nextIdx;
-        }
+        if (idx === null || idx === undefined) idx = nextIdx;
         var n = parseInt(idx, 10);
-        if (!isNaN(n) && n >= nextIdx) {
-            nextIdx = n + 1;
-        }
+        if (!isNaN(n) && n >= nextIdx) nextIdx = n + 1;
 
         var holder = document.createElement('template');
         holder.innerHTML = tplHtml.split('__IDX__').join(String(idx));
@@ -273,9 +537,7 @@ ob_start();
         });
         tr.querySelector('.js-remove').addEventListener('click', function() {
             tr.remove();
-            if (!body.querySelector('tr.item-row')) {
-                addRow();
-            }
+            if (!body.querySelector('tr.item-row')) addRow();
             recalc();
         });
 
