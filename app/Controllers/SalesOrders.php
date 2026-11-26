@@ -94,6 +94,59 @@ class SalesOrders extends BaseController
         return $redirect->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
 
+    public function edit(int $id)
+    {
+        $so = $this->service()->find($id);
+        if ($so === null) { return $this->notFound(); }
+
+        // Cek apakah ada DO aktif
+        $hasActiveDelivery = false;
+        foreach ($so['deliveries'] as $d) {
+            if ($d['status'] === \Config\Documents::DL_ACTIVE) { $hasActiveDelivery = true; break; }
+        }
+
+        if ($so['status'] !== \Config\Documents::SO_OPEN || $hasActiveDelivery) {
+            return redirect()->to('/sales-orders/' . $id)->with('error', config('Sales')->messages['so_edit_not_allowed']);
+        }
+
+        $form = $this->service()->formData();
+        
+        $old = [
+            'customer_id' => $so['customer_id'],
+            'so_date'     => $so['so_date'],
+            'items'       => array_map(static fn($it) => [
+                'product_id' => $it['product_id'],
+                'quantity'   => $it['quantity'],
+                'unit_price' => $it['unit_price'],
+            ], $so['items']),
+        ];
+
+        return view('sales_orders/form', [
+            'title'     => 'Ubah Sales Order',
+            'customers' => $form['customers'],
+            'products'  => $form['products'],
+            'action'    => site_url('sales-orders/' . $id . '/edit'),
+            'today'     => date('Y-m-d'),
+            'errors'    => session()->getFlashdata('errors') ?? [],
+            'old'       => session()->getFlashdata('old') ?? $old,
+        ]);
+    }
+
+    public function update(int $id)
+    {
+        $input  = $this->request->getPost(['customer_id', 'so_date', 'items']);
+        $result = $this->service()->update($id, $input, auth_user()['id']);
+
+        if (! $result['ok']) {
+            $redirect = redirect()->to('/sales-orders/' . $id . '/edit')
+                ->with('errors', $result['errors'])
+                ->with('old', $input);
+            return $result['message'] !== '' ? $redirect->with('error', $result['message']) : $redirect;
+        }
+
+        return redirect()->to('/sales-orders/' . $id)->with('success', $result['message']);
+    }
+
     private function notFound()
     {
         return redirect()->to('/sales-orders')->with('error', config('Sales')->messages['so_not_found']);

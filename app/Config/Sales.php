@@ -27,7 +27,10 @@ class Sales extends BaseConfig
         'so_cancel_not_allowed'   => 'SO hanya dapat dibatalkan bila berstatus Open.',
         'so_cancel_has_delivery'  => 'SO tidak dapat dibatalkan karena masih memiliki Delivery aktif. Batalkan Delivery terlebih dahulu.',
         'save_failed'             => 'Gagal menyimpan data. Silakan coba lagi.',
-
+        'so_updated'              => 'Sales Order berhasil diperbarui.',
+        'so_edit_not_allowed'     => 'SO hanya dapat diedit bila berstatus Open dan tidak memiliki Delivery aktif.',
+        'so_item_has_delivery'    => 'Produk yang sudah memiliki riwayat pengiriman tidak dapat dihapus dari daftar. Silakan biarkan produk tersebut atau ubah kuantitasnya.',
+        
         // Pembatalan umum
         'cancel_reason_required'  => 'Alasan pembatalan wajib diisi.',
         'cancel_reason_max'       => 'Alasan pembatalan maksimal 500 karakter.',

@@ -125,10 +125,100 @@ class SalesOrderModel extends Model
         return $rows;
     }
 
+        public function updateWithItems(int $id, array $h, array $items): string
+    {
+        $this->db->transBegin();
+        try {
+            // 1. Kunci baris SO
+            $row = $this->run('SELECT status FROM sales_orders WHERE id = ? FOR UPDATE', [$id])->getRowArray();
+            if (! $row) {
+                $this->db->transRollback();
+                return 'not_found';
+            }
+            if ($row['status'] !== Documents::SO_OPEN) {
+                $this->db->transRollback();
+                return 'not_cancellable'; 
+            }
+
+            // 2. Cek apakah masih ada DO aktif
+            $active = Documents::DL_ACTIVE;
+            $hasDl = $this->run(
+                'SELECT 1 FROM deliveries WHERE sales_order_id = ? AND status = ? LIMIT 1',
+                [$id, $active]
+            )->getRowArray();
+            if ($hasDl) {
+                $this->db->transRollback();
+                return 'has_active_delivery';
+            }
+
+            // 3. Update Header
+            $this->run(
+                'UPDATE sales_orders 
+                 SET so_date = ?, customer_id = ?, total_amount = ?, updated_at = now() 
+                 WHERE id = ?',
+                [$h['so_date'], $h['customer_id'], $h['total_amount'], $id]
+            );
+
+            // 4. Ambil item lama beserta histori pengirimannya
+            $existingItems = $this->run(
+                "SELECT soi.id, soi.product_id,
+                        (SELECT COUNT(*) FROM delivery_items di WHERE di.sales_order_item_id = soi.id) AS used_count
+                 FROM sales_order_items soi
+                 WHERE soi.sales_order_id = ?",
+                [$id]
+            )->getResultArray();
+
+            $existingMap = [];
+            foreach ($existingItems as $ex) {
+                $existingMap[$ex['product_id']] = $ex;
+            }
+
+            // 5. Proses Item Baru (Update jika ada, Insert jika belum ada)
+            foreach ($items as $it) {
+                $pid = $it['product_id'];
+                if (isset($existingMap[$pid])) {
+                    // Produk sudah ada di SO, cukup di-update kuantitas & harganya
+                    $this->run(
+                        'UPDATE sales_order_items 
+                         SET quantity = ?, unit_price = ?, subtotal = ? 
+                         WHERE id = ?',
+                        [$it['quantity'], $it['unit_price'], $it['subtotal'], $existingMap[$pid]['id']]
+                    );
+                    // Tandai sudah diproses agar tidak dihapus di langkah 6
+                    unset($existingMap[$pid]);
+                } else {
+                    // Produk benar-benar baru, lakukan INSERT
+                    $this->run(
+                        'INSERT INTO sales_order_items (sales_order_id, product_id, quantity, unit_price, subtotal)
+                         VALUES (?, ?, ?, ?, ?)',
+                        [$id, $it['product_id'], $it['quantity'], $it['unit_price'], $it['subtotal']]
+                    );
+                }
+            }
+
+            // 6. Hapus item lama yang dibuang dari form oleh user
+            foreach ($existingMap as $old) {
+                if ((int)$old['used_count'] > 0) {
+                    // Jika produk ini pernah masuk ke DO (walau DO dibatalkan), jangan hapus!
+                    $this->db->transRollback();
+                    return 'item_has_delivery_history';
+                }
+                // Hapus jika produk belum pernah masuk ke DO sama sekali
+                $this->run('DELETE FROM sales_order_items WHERE id = ?', [$old['id']]);
+            }
+
+            $this->db->transCommit();
+            return 'ok';
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
+        }
+    }
+
     public function deliveriesOf(int $soId): array
     {
         $rows = $this->db->query(
-            'SELECT d.id, d.delivery_number, d.delivery_date, d.status,
+            'SELECT d.id, d.delivery_number, d.delivery_date, d.status, d.cancel_reason, -- <-- TAMBAHKAN d.cancel_reason
                     (SELECT COALESCE(SUM(i.quantity_delivered), 0) FROM delivery_items i WHERE i.delivery_id = d.id) AS total_qty
              FROM deliveries d
              WHERE d.sales_order_id = ?

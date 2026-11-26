@@ -1,6 +1,6 @@
 <?php
 /**
- * UI-20 Detail Sales Order (batal + kirim). Variabel: $so (header + 'items', 'deliveries', 'deliverable'),
+ * UI-20 Detail Sales Order (batal + kirim + edit). Variabel: $so (header + 'items', 'deliveries', 'deliverable'),
  * $canWrite, $canShip, $errors.
  */
 $this->extend('layouts/main');
@@ -14,7 +14,11 @@ $hasActiveDelivery = false;
 foreach ($so['deliveries'] as $d) {
     if ($d['status'] === Documents::DL_ACTIVE) { $hasActiveDelivery = true; break; }
 }
+
 $canCancelSO = $canWrite && $isOpen && ! $hasActiveDelivery;
+
+// ─── TAMBAHKAN VARIABEL INI UNTUK TOMBOL UBAH ───
+$canEditSO   = $canWrite && $isOpen && ! $hasActiveDelivery;
 ?>
 <?= $this->section('content') ?>
 
@@ -25,11 +29,20 @@ $canCancelSO = $canWrite && $isOpen && ! $hasActiveDelivery;
     </h1>
     <div class="d-flex gap-2">
         <a href="<?= site_url('sales-orders') ?>" class="btn btn-secondary">Kembali</a>
+
         <?php if ($canShip && $so['deliverable']): ?>
         <a href="<?= site_url('deliveries/new/' . $so['id']) ?>" class="btn btn-success">
             <i class="bi bi-truck me-1"></i>Kirim Barang
         </a>
         <?php endif; ?>
+
+        <?php // ─── TOMBOL UBAH SO BARU ─── ?>
+        <?php if ($canEditSO): ?>
+        <a href="<?= site_url('sales-orders/' . $so['id'] . '/edit') ?>" class="btn btn-primary">
+            <i class="bi bi-pencil-square me-1"></i>Ubah SO
+        </a>
+        <?php endif; ?>
+
         <?php if ($canCancelSO): ?>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
             <i class="bi bi-x-circle me-1"></i>Batalkan
@@ -47,8 +60,8 @@ $canCancelSO = $canWrite && $isOpen && ! $hasActiveDelivery;
 
 <?php if ($canWrite && $isOpen && $hasActiveDelivery): ?>
 <div class="alert alert-warning py-2">
-    SO ini memiliki Delivery aktif sehingga tidak dapat dibatalkan. Batalkan Delivery terlebih dahulu
-    melalui halaman detail Delivery.
+    SO ini memiliki Delivery aktif sehingga tidak dapat diubah atau dibatalkan. <br>
+    Silakan batalkan Delivery terlebih dahulu melalui halaman detail Delivery jika Anda ingin merevisi pesanan ini.
 </div>
 <?php endif; ?>
 
@@ -145,7 +158,14 @@ $canCancelSO = $canWrite && $isOpen && ! $hasActiveDelivery;
                 <tr>
                     <td class="text-nowrap fw-semibold"><?= esc($dl['delivery_number']) ?></td>
                     <td class="text-nowrap"><?= esc(format_date($dl['delivery_date'])) ?></td>
-                    <td><?= status_badge($dl['status']) ?></td>
+                    <td>
+                        <?= status_badge($dl['status']) ?>
+                        <?php if ($dl['status'] === Documents::DL_CANCELLED && !empty($dl['cancel_reason'])): ?>
+                        <div class="small text-danger mt-1" style="max-width: 250px; white-space: normal;">
+                            <i class="bi bi-info-circle me-1"></i><?= esc($dl['cancel_reason']) ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
                     <td class="text-end"><?= number_format($dl['total_qty'], 0, ',', '.') ?></td>
                     <?php if ($canShip): ?>
                     <td class="text-end">

@@ -125,6 +125,8 @@ $routes->group('sales-orders', ['filter' => 'auth:sales_order'], static function
 $routes->group('sales-orders', ['filter' => 'auth:sales_order,W'], static function ($routes) {
     $routes->get('new', 'SalesOrders::new');
     $routes->post('', 'SalesOrders::create');
+    $routes->get('(:num)/edit', 'SalesOrders::edit/$1');   // <-- TAMBAHKAN
+    $routes->post('(:num)/edit', 'SalesOrders::update/$1'); // <-- TAMBAHKAN
     $routes->post('(:num)/cancel', 'SalesOrders::cancel/$1');
 });
 

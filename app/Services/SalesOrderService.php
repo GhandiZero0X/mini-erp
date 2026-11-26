@@ -85,6 +85,32 @@ class SalesOrderService
         return $res;
     }
 
+    public function update(int $id, array $input, int $userId): array
+    {
+        $in     = self::clean($input);
+        $errors = self::validateFields($in, $this->msg);
+        $errors = $this->checkReferences($in, $errors);
+        if ($errors !== []) { return $this->invalid($errors); }
+
+        [$header, $items] = self::buildPayload($in, $userId);
+
+        try {
+            $status = $this->orders->updateWithItems($id, $header, $items);
+        } catch (DatabaseException $e) {
+            log_message('error', 'Gagal memperbarui SO: ' . $e->getMessage());
+            return $this->failure('save_failed');
+        }
+
+        return match ($status) {
+            'ok'                  => $this->success('so_updated'),
+            'not_found'           => $this->failure('so_not_found', 'not_found'),
+            'not_cancellable'     => $this->failure('so_edit_not_allowed', 'not_cancellable'),
+            'has_active_delivery' => $this->failure('so_cancel_has_delivery', 'not_cancellable'),
+            'item_has_delivery_history' => $this->failure('so_item_has_delivery', 'not_cancellable'),
+            default               => $this->failure('save_failed'),
+        };
+    }
+
     private function generateAutoPO(int $soId, array $items, int $userId): void
     {
         $db = \Config\Database::connect();
