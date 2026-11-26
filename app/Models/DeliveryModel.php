@@ -138,9 +138,12 @@ class DeliveryModel extends Model
 
             $lines   = [];
             $exceeds = false;
+            $isFullyDelivered = true; // <-- Tambahkan variabel ini
+
             foreach ($items as $it) {
                 $itemId = (int) $it['id'];
                 $qty    = (int) ($qtyByItem[$itemId] ?? 0);
+                
                 if ($qty > $remaining[$itemId]) { $exceeds = true; }
                 if ($qty > 0) {
                     $lines[] = [
@@ -149,6 +152,11 @@ class DeliveryModel extends Model
                         'product_name' => $it['product_name'],
                         'qty'          => $qty,
                     ];
+                }
+
+                // <-- TAMBAHKAN PENGECEKAN INI -->
+                if (($remaining[$itemId] - $qty) > 0) {
+                    $isFullyDelivered = false;
                 }
             }
             if ($exceeds) { $this->db->transRollback(); return ['status' => 'exceeds', 'remaining' => $remaining]; }
@@ -162,7 +170,6 @@ class DeliveryModel extends Model
             )->getRowArray();
             $deliveryId = (int) $row['id'];
 
-            // Urut product_id (dari ORDER BY) → anti-deadlock saat decrease()
             foreach ($lines as $l) {
                 $this->run(
                     'INSERT INTO delivery_items (delivery_id, sales_order_item_id, quantity_delivered) VALUES (?, ?, ?)',
@@ -172,6 +179,11 @@ class DeliveryModel extends Model
                     $l['product_id'], $l['qty'], 'DELIVERY', $deliveryId, $number,
                     'Pengiriman barang ' . $number, $userId
                 );
+            }
+
+            // <-- TAMBAHKAN BLOK INI UNTUK MENGUBAH STATUS DI DATABASE -->
+            if ($isFullyDelivered) {
+                $this->run('UPDATE sales_orders SET status = ?, updated_at = now() WHERE id = ?', [Documents::SO_CLOSED, $soId]);
             }
 
             $this->db->transCommit();
@@ -196,23 +208,20 @@ class DeliveryModel extends Model
         }
     }
 
-    /**
-     * Batalkan Delivery: Aktif → Dibatalkan, stok dikembalikan via StockService::increase().
-     *
-     * @return array{status:string}
-     *         status: 'ok'|'not_found'|'not_active'
-     */
-    public function cancel(int $id, int $userId, string $reason): array
+        public function cancel(int $id, int $userId, string $reason): array
     {
         $this->db->transBegin();
         try {
+            // 1. Ambil data DO beserta sales_order_id (TAMBAHKAN sales_order_id)
             $dl = $this->run(
-                'SELECT status, delivery_number FROM deliveries WHERE id = ? FOR UPDATE',
+                'SELECT status, delivery_number, sales_order_id FROM deliveries WHERE id = ? FOR UPDATE',
                 [$id]
             )->getRowArray();
+            
             if (! $dl) { $this->db->transRollback(); return ['status' => 'not_found']; }
             if ($dl['status'] !== Documents::DL_ACTIVE) { $this->db->transRollback(); return ['status' => 'not_active']; }
 
+            // 2. Ambil item untuk mengembalikan stok
             $items = $this->run(
                 'SELECT soi.product_id, di.quantity_delivered
                  FROM delivery_items di
@@ -222,6 +231,7 @@ class DeliveryModel extends Model
                 [$id]
             )->getResultArray();
 
+            // 3. Ubah status Delivery menjadi Dibatalkan
             $this->run(
                 'UPDATE deliveries
                  SET status = ?, cancelled_by = ?, cancelled_at = now(), cancel_reason = ?, updated_at = now()
@@ -229,6 +239,13 @@ class DeliveryModel extends Model
                 [Documents::DL_CANCELLED, $userId, $reason, $id]
             );
 
+            // 4. KEMBALIKAN STATUS SO MENJADI OPEN
+            $this->run(
+                'UPDATE sales_orders SET status = ?, updated_at = now() WHERE id = ?', 
+                [Documents::SO_OPEN, $dl['sales_order_id']]
+            );
+
+            // 5. Kembalikan stok produk
             $stock = new StockService();
             foreach ($items as $it) {
                 $stock->increase(
@@ -244,6 +261,7 @@ class DeliveryModel extends Model
 
             $this->db->transCommit();
             return ['status' => 'ok'];
+            
         } catch (\Throwable $e) {
             $this->db->transRollback();
             throw $e;

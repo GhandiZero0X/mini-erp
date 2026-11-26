@@ -84,7 +84,7 @@ ob_start();
                     <th>Produk</th>
                     <th style="width: 80px;">Satuan</th>
                     <th style="width: 130px;" class="text-end">Kuantitas</th>
-                    <th style="width: 140px;" class="text-center">Stok</th>
+                    <th style="width: 140px;" class="text-center">Stok Tersedia</th>
                     <th style="width: 180px;" class="text-end">Harga Satuan (Rp)</th>
                     <th style="width: 170px;" class="text-end">Subtotal</th>
                     <th style="width: 50px;"></th>

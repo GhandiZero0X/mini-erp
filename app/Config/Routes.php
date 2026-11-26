@@ -92,6 +92,8 @@ $routes->group('purchase-orders', ['filter' => 'auth:purchase_order'], static fu
 $routes->group('purchase-orders', ['filter' => 'auth:purchase_order,W'], static function ($routes) {
     $routes->get('new', 'PurchaseOrders::new');
     $routes->post('', 'PurchaseOrders::create');
+    $routes->get('(:num)/edit', 'PurchaseOrders::edit/$1');
+    $routes->post('(:num)/edit', 'PurchaseOrders::update/$1');
 });
 $routes->post(
     'purchase-orders/(:num)/approve',

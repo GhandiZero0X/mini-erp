@@ -33,7 +33,7 @@ class CreateSalesOrdersTable extends Migration
         $this->forge->addForeignKey('cancelled_by', 'users', 'id', 'RESTRICT', 'RESTRICT', 'fk_so_cancelled_by');
         $this->forge->createTable('sales_orders');
 
-        $this->db->query("ALTER TABLE sales_orders ADD CONSTRAINT chk_so_status CHECK (status IN ('Open','Dibatalkan'))");
+        $this->db->query("ALTER TABLE sales_orders ADD CONSTRAINT chk_so_status CHECK (status IN ('Open','Dibatalkan','Selesai'))");
         $this->db->query('ALTER TABLE sales_orders ADD CONSTRAINT chk_so_total CHECK (total_amount >= 0)');
         $this->db->query("ALTER TABLE sales_orders ADD CONSTRAINT chk_so_cancel CHECK (status <> 'Dibatalkan' OR (cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL AND cancel_reason IS NOT NULL))");
     }

@@ -54,6 +54,7 @@ class DeliveryService
         }
 
         try {
+            // Model menangani transaksi dan pengurangan stok
             $r = $this->deliveries->createFromSo($soId, $in['delivery_date'], $qtyByItem, $userId);
         } catch (DatabaseException $e) {
             log_message('error', 'Gagal menyimpan Delivery: ' . $e->getMessage());

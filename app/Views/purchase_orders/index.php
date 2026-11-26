@@ -62,7 +62,12 @@ $this->extend('layouts/main');
             <?php else: ?>
                 <?php foreach ($rows as $row): ?>
                     <tr>
-                        <td class="text-nowrap fw-semibold"><?= esc($row['po_number']) ?></td>
+                        <td class="text-nowrap fw-semibold">
+                            <?= esc($row['po_number']) ?>
+                            <?php if (str_starts_with($row['cancel_reason'] ?? '', 'AUTO-PO:')): ?>
+                                <span class="badge text-bg-warning ms-1" title="Dibuat otomatis oleh sistem">Auto-PO</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-nowrap"><?= esc(format_date($row['po_date'])) ?></td>
                         <td><?= esc($row['supplier_name']) ?></td>
                         <td><?= status_badge($row['status']) ?></td>
@@ -76,11 +81,11 @@ $this->extend('layouts/main');
                                     class="btn btn-sm btn-success">Setujui</a>
                             <?php endif; ?>
 
-                    <?php if (($canReceive ?? false) && $row['status'] === \Config\Documents::PO_APPROVED): ?>
+                            <?php if (($canReceive ?? false) && $row['status'] === \Config\Documents::PO_APPROVED): ?>
                                 <a href="<?= site_url('goods-receipts/new/' . $row['id']) ?>" class="btn btn-sm btn-success">Terima
                                     Barang</a>
                             <?php endif; ?>
-                    </td>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

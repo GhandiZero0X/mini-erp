@@ -27,7 +27,8 @@ class PurchaseOrderModel extends Model
     {
         $this->select(
             'purchase_orders.id, purchase_orders.po_number, purchase_orders.po_date,
-             purchase_orders.status, purchase_orders.total_amount, s.name AS supplier_name',
+             purchase_orders.status, purchase_orders.total_amount, s.name AS supplier_name,
+             purchase_orders.cancel_reason', // <-- TAMBAHKAN INI
             false
         )->join('suppliers s', 's.id = purchase_orders.supplier_id');
 
@@ -193,38 +194,29 @@ class PurchaseOrderModel extends Model
             ->get()->getResultArray();
     }
 
-    /** Pilihan produk untuk form (beserta satuan, harga beli default, & kapasitas sisa). */
+        /** Produk + stok tersedia (Fisik - SO Open) untuk pilihan di form SO. */
     public function productOptions(): array
     {
         return $this->db->query(
-            "SELECT p.id, p.code, p.name, u.code AS unit,
-                    p.purchase_price,
-                    p.max_stock,
-                    CASE
-                        WHEN p.max_stock IS NULL THEN NULL
-                        ELSE GREATEST(0, p.max_stock
-                            - COALESCE(sb.quantity, 0)
-                            - COALESCE((
-                                SELECT SUM(poi.quantity - COALESCE(gr.received, 0))
-                                FROM purchase_order_items poi
-                                JOIN purchase_orders po ON po.id = poi.purchase_order_id
-                                LEFT JOIN (
-                                    SELECT gri.purchase_order_item_id,
-                                            SUM(gri.quantity_received) AS received
-                                    FROM goods_receipt_items gri
-                                    JOIN goods_receipts gr ON gr.id = gri.goods_receipt_id
-                                    WHERE gr.status = 'Aktif'
-                                    GROUP BY gri.purchase_order_item_id
-                                ) gr ON gr.purchase_order_item_id = poi.id
-                                WHERE poi.product_id = p.id
-                                AND po.status IN ('Draft', 'Approved')
-                            ), 0)
-                        )
-                    END AS available_room
+            'SELECT p.id, p.code, p.name, u.code AS unit,
+                    p.selling_price AS sale_price,
+                    -- Stok Fisik
+                    COALESCE(sb.quantity, 0) AS physical_stock,
+                    -- Stok Tersedia: Fisik dikurangi SISA yang BELUM DIKIRIM di SO Open
+                    (COALESCE(sb.quantity, 0) - COALESCE(
+                        (SELECT SUM(soi.quantity - COALESCE(
+                                    (SELECT SUM(di.quantity_delivered) 
+                                     FROM delivery_items di 
+                                     JOIN deliveries d ON d.id = di.delivery_id 
+                                     WHERE di.sales_order_item_id = soi.id AND d.status = \'Aktif\'), 0))
+                         FROM sales_order_items soi 
+                         JOIN sales_orders so ON so.id = soi.sales_order_id 
+                         WHERE soi.product_id = p.id AND so.status = \'Open\'), 0
+                    )) AS stock_available
             FROM products p
             JOIN units u ON u.id = p.unit_id
             LEFT JOIN stock_balances sb ON sb.product_id = p.id
-            ORDER BY lower(p.name) ASC, p.id ASC"
+            ORDER BY lower(p.name) ASC, p.id ASC'
         )->getResultArray();
     }
 
@@ -381,6 +373,55 @@ class PurchaseOrderModel extends Model
                 WHERE id = ?',
                 [Documents::PO_CANCELLED, $userId, $reason, $id]
             );
+
+            $this->db->transCommit();
+            return 'ok';
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Ubah header PO dan itemnya. Hanya boleh untuk status Draft.
+     * Item lama dihapus, item baru dimasukkan (replace).
+     *
+     * @return string 'ok' | 'not_found' | 'not_draft'
+     */
+    public function updateWithItems(int $id, array $h, array $items): string
+    {
+        $this->db->transBegin();
+        try {
+            // Kunci baris PO
+            $row = $this->run('SELECT status FROM purchase_orders WHERE id = ? FOR UPDATE', [$id])->getRowArray();
+            if (! $row) {
+                $this->db->transRollback();
+                return 'not_found';
+            }
+            if ($row['status'] !== Documents::PO_DRAFT) {
+                $this->db->transRollback();
+                return 'not_draft';
+            }
+
+            // 1. Update Header
+            $this->run(
+                'UPDATE purchase_orders 
+                 SET po_date = ?, supplier_id = ?, total_amount = ?, updated_at = now() 
+                 WHERE id = ?',
+                [$h['po_date'], $h['supplier_id'], $h['total_amount'], $id]
+            );
+
+            // 2. Hapus Item Lama
+            $this->run('DELETE FROM purchase_order_items WHERE purchase_order_id = ?', [$id]);
+
+            // 3. Masukkan Item Baru
+            foreach ($items as $it) {
+                $this->run(
+                    'INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity, unit_price, subtotal)
+                     VALUES (?, ?, ?, ?, ?)',
+                    [$id, $it['product_id'], $it['quantity'], $it['unit_price'], $it['subtotal']]
+                );
+            }
 
             $this->db->transCommit();
             return 'ok';

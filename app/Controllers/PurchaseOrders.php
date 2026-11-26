@@ -90,6 +90,60 @@ class PurchaseOrders extends BaseController
         return redirect()->to('/purchase-orders/' . $result['id'])->with('success', $result['message']);
     }
 
+        /** GET /purchase-orders/{id}/edit */
+    public function edit(int $id)
+    {
+        $po = $this->service()->find($id);
+        if ($po === null) {
+            return $this->notFound();
+        }
+
+        if ($po['status'] !== \Config\Documents::PO_DRAFT) {
+            return redirect()->to('/purchase-orders/' . $id)->with('error', config('Purchasing')->messages['edit_not_draft']);
+        }
+
+        $form = $this->service()->formData();
+
+        // Siapkan array $old agar form langsung terisi data yang ada
+        $old = [
+            'supplier_id' => $po['supplier_id'],
+            'po_date'     => $po['po_date'],
+            'items'       => array_map(static fn($it) => [
+                'product_id' => $it['product_id'],
+                'quantity'   => $it['quantity'],
+                'unit_price' => $it['unit_price'],
+            ], $po['items']),
+        ];
+
+        return view('purchase_orders/form', [
+            'title'     => 'Ubah Purchase Order',
+            'suppliers' => $form['suppliers'],
+            'products'  => $form['products'],
+            'action'    => site_url('purchase-orders/' . $id . '/edit'),
+            'today'     => date('Y-m-d'),
+            'errors'    => session()->getFlashdata('errors') ?? [],
+            'old'       => session()->getFlashdata('old') ?? $old,
+            'preselect' => null,
+        ]);
+    }
+
+    /** POST /purchase-orders/{id}/edit */
+    public function update(int $id)
+    {
+        $input  = $this->request->getPost(['supplier_id', 'po_date', 'items']);
+        $result = $this->service()->update($id, $input, auth_user()['id']);
+
+        if (! $result['ok']) {
+            $redirect = redirect()->to('/purchase-orders/' . $id . '/edit')
+                ->with('errors', $result['errors'])
+                ->with('old', $input);
+
+            return $result['message'] !== '' ? $redirect->with('error', $result['message']) : $redirect;
+        }
+
+        return redirect()->to('/purchase-orders/' . $id)->with('success', $result['message']);
+    }
+
     public function show(int $id)
     {
         $po = $this->service()->find($id);

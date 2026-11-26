@@ -44,9 +44,10 @@ class SalesOrderService
         $so['items']       = $items;
         $so['deliveries']  = $this->orders->deliveriesOf($id);
         $so['deliverable'] = $so['status'] === Documents::SO_OPEN && $remaining > 0;
+
+        // Hapus logika virtual status
         return $so;
     }
-
     public function formData(): array
     {
         return [
@@ -65,6 +66,13 @@ class SalesOrderService
         [$header, $items] = self::buildPayload($in, $userId);
         try {
             $saved = $this->orders->createWithItems($header, $items);
+
+            // Auto-PO adalah efek samping; kegagalannya tidak boleh membatalkan SO
+            try {
+                $this->generateAutoPO($saved['id'], $items, $userId);
+            } catch (\Throwable $e) {
+                log_message('error', 'Auto-PO exception: ' . $e->getMessage());
+            }
         } catch (DatabaseException $e) {
             $errors = $this->checkReferences($in, []);
             if ($errors !== []) { return $this->invalid($errors); }
@@ -75,6 +83,76 @@ class SalesOrderService
         $res       = $this->success('so_created');
         $res['id'] = $saved['id'];
         return $res;
+    }
+
+    private function generateAutoPO(int $soId, array $items, int $userId): void
+    {
+        $db = \Config\Database::connect();
+        $shortages = [];
+
+        foreach ($items as $it) {
+            $sb = $db->table('stock_balances')->where('product_id', $it['product_id'])->get()->getRowArray();
+            $physical = $sb ? (int) $sb['quantity'] : 0;
+
+            if ($it['quantity'] > $physical) {
+                $prod = $db->table('products')->select('purchase_price')
+                    ->where('id', $it['product_id'])->get()->getRowArray();
+                $purchasePrice = $prod ? $prod['purchase_price'] : 0;
+
+                $shortages[] = [
+                    'product_id' => $it['product_id'],
+                    'qty'        => $it['quantity'] - $physical,
+                    'price'      => $purchasePrice,
+                ];
+            }
+        }
+
+        if (empty($shortages)) {
+            return;
+        }
+
+        $supplier = $db->table('suppliers')->get()->getRowArray();
+        if (! $supplier) {
+            return; // Belum ada supplier → lewati, jangan gagalkan SO
+        }
+
+        $db->transBegin();
+        try {
+            // ✅ next() WAJIB di dalam transaction
+            $numbers  = new \App\Services\DocumentNumberService();
+            $poNumber = $numbers->next('purchase_order', date('Y-m-d'));
+
+            $db->table('purchase_orders')->insert([
+                'po_number'     => $poNumber,
+                'po_date'       => date('Y-m-d'),
+                'supplier_id'   => $supplier['id'],
+                'status'        => 'Draft',
+                'total_amount'  => 0,
+                'created_by'    => $userId,
+                'cancel_reason' => 'AUTO-PO: Dari kekurangan stok SO #' . $soId,
+            ]);
+            $poId = $db->insertID();
+
+            $total = 0;
+            foreach ($shortages as $s) {
+                $subtotal = $s['qty'] * $s['price'];
+                $total   += $subtotal;
+
+                $db->table('purchase_order_items')->insert([
+                    'purchase_order_id' => $poId,
+                    'product_id'        => $s['product_id'],
+                    'quantity'          => $s['qty'],
+                    'unit_price'        => $s['price'],
+                    'subtotal'          => $subtotal,
+                ]);
+            }
+
+            $db->table('purchase_orders')->where('id', $poId)->update(['total_amount' => $total]);
+            $db->transCommit();
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'Auto-PO gagal dibuat: ' . $e->getMessage());
+        }
     }
 
     public function cancel(int $id, array $input, int $userId): array

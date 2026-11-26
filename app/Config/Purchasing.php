@@ -29,6 +29,10 @@ class Purchasing extends BaseConfig
         'approve_not_draft'  => 'Hanya PO berstatus Draft yang dapat disetujui.',
         'po_approved'        => 'Purchase Order berhasil disetujui.',
 
+        // update po
+        'po_updated'        => 'Purchase Order berhasil diperbarui.',
+        'edit_not_draft'    => 'Hanya PO berstatus Draft yang dapat diedit.',
+
         // UC-09 Mencatat Goods Receipt
         'gr_not_receivable'  => 'Hanya PO berstatus Approved yang belum diterima penuh yang dapat diproses.',
         'gr_qty_invalid'     => 'Kuantitas diterima tidak valid atau melebihi sisa pesanan ({sisa}).',

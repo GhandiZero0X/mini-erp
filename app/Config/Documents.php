@@ -28,12 +28,13 @@ class Documents extends BaseConfig
     // Status Sales Order
     public const SO_OPEN      = 'Open';
     public const SO_CANCELLED = 'Dibatalkan';
+    public const SO_CLOSED = 'Selesai';
 
     // Status Delivery
     public const DL_ACTIVE    = 'Aktif';
     public const DL_CANCELLED = 'Dibatalkan';
 
-    public array $soStatuses = [self::SO_OPEN, self::SO_CANCELLED];
+    public array $soStatuses = [self::SO_OPEN, self::SO_CANCELLED, self::SO_CLOSED];
     public array $dlStatuses = [self::DL_ACTIVE, self::DL_CANCELLED];
 
     /** Awalan nomor dokumen: PREFIX-YYYYMM-0001. */
@@ -57,6 +58,7 @@ class Documents extends BaseConfig
         'Draft'      => 'text-bg-secondary',
         'Approved'   => 'text-bg-success',
         'Open'       => 'text-bg-primary',
+        'Selesai'    => 'text-bg-info',
         'Aktif'      => 'text-bg-success',
         'Dibatalkan' => 'text-bg-danger',
     ];

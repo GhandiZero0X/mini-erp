@@ -11,7 +11,7 @@ use Config\Documents;
 $isDraft = $po['status'] === Documents::PO_DRAFT;
 $isCancelled = $po['status'] === Documents::PO_CANCELLED;
 
-// ─── BARU: cek apakah masih ada GR aktif (pembatalan PO diblokir)
+// ─── cek apakah masih ada GR aktif (pembatalan PO diblokir)
 $hasActiveGR = false;
 foreach ($po['receipts'] as $r) {
     if ($r['status'] === Documents::GR_ACTIVE) {
@@ -20,7 +20,7 @@ foreach ($po['receipts'] as $r) {
     }
 }
 
-// ─── BARU: syarat tombol Batalkan
+// ─── syarat tombol Batalkan
 $canCancelPO = $canWrite
     && !$isCancelled
     && in_array($po['status'], [Documents::PO_DRAFT, Documents::PO_APPROVED], true)
@@ -35,17 +35,27 @@ $canCancelPO = $canWrite
     </h1>
     <div class="d-flex gap-2">
         <a href="<?= site_url('purchase-orders') ?>" class="btn btn-secondary">Kembali</a>
+
         <?php if ($canReceive && $po['receivable']): ?>
         <a href="<?= site_url('goods-receipts/new/' . $po['id']) ?>" class="btn btn-success">
             <i class="bi bi-box-arrow-in-down me-1"></i>Terima Barang
         </a>
         <?php endif; ?>
+
+        <?php // ─── TOMBOL UBAH BARU ─── ?>
+        <?php if ($canWrite && $isDraft): ?>
+        <a href="<?= site_url('purchase-orders/' . $po['id'] . '/edit') ?>" class="btn btn-primary">
+            <i class="bi bi-pencil-square me-1"></i>Ubah
+        </a>
+        <?php endif; ?>
+
         <?php if ($canApprove && $isDraft): ?>
         <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal">
             <i class="bi bi-check2-circle me-1"></i>Setujui
         </button>
         <?php endif; ?>
-        <?php if ($canCancelPO): // ─── BARU ?>
+
+        <?php if ($canCancelPO): ?>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
             <i class="bi bi-x-circle me-1"></i>Batalkan
         </button>
@@ -53,23 +63,33 @@ $canCancelPO = $canWrite
     </div>
 </div>
 
+<?php // ─── Peringatan Auto-PO ?>
+<?php if (str_starts_with($po['cancel_reason'] ?? '', 'AUTO-PO:')): ?>
+<div class="alert alert-warning py-2 mb-3">
+    <i class="bi bi-robot me-1"></i>
+    <strong>Sistem (Auto-PO):</strong> PO ini dibuat otomatis karena ada Sales Order yang kekurangan stok.
+    Silakan periksa Supplier, kuantitas, lalu setujui (Approve) jika sudah sesuai.
+    <br><small class="text-muted fst-italic"><?= esc($po['cancel_reason']) ?></small>
+</div>
+<?php endif; ?>
+
 <?php if ($isDraft): ?>
 <div class="alert alert-info py-2">
     PO berstatus Draft belum dapat diterima barangnya dan tidak mengubah stok.
 </div>
 <?php endif; ?>
 
-<?php if ($canWrite && $po['status'] === Documents::PO_APPROVED && $hasActiveGR): // ─── BARU ?>
+<?php if ($canWrite && $po['status'] === Documents::PO_APPROVED && $hasActiveGR): ?>
 <div class="alert alert-warning py-2">
     PO ini memiliki Goods Receipt aktif sehingga tidak dapat dibatalkan.
     Batalkan seluruh GR terlebih dahulu melalui halaman detail masing-masing GR.
 </div>
 <?php endif; ?>
 
-<?php if (session('error')): // ─── BARU: tampilkan pesan error dari service ?>
+<?php if (session('error')): ?>
 <div class="alert alert-danger py-2"><?= esc(session('error')) ?></div>
 <?php endif; ?>
-<?php if (session('success')): // ─── BARU ?>
+<?php if (session('success')): ?>
 <div class="alert alert-success py-2"><?= esc(session('success')) ?></div>
 <?php endif; ?>
 
@@ -211,7 +231,7 @@ $canCancelPO = $canWrite
 </div>
 <?php endif; ?>
 
-<?php if ($canCancelPO): // ─── BARU: modal batalkan ?>
+<?php if ($canCancelPO): // ─── modal batalkan ?>
 <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelTitle" aria-hidden="true">
     <div class="modal-dialog">
         <form method="post" action="<?= site_url('purchase-orders/' . $po['id'] . '/cancel') ?>" class="modal-content">

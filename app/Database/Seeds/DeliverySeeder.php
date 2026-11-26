@@ -31,8 +31,9 @@ class DeliverySeeder extends Seeder
             }
 
             $so = $this->db->table('sales_orders')->where('so_number', $d['so'])->get()->getRowArray();
-            if (! $so || $so['status'] !== 'Open') {
-                throw new RuntimeException("{$d['so']} tidak ada / tidak Open. Jalankan SalesOrderSeeder dulu.");
+            // Hapus pengecekan 'Open' yang ketat karena bisa jadi SO sudah Selesai dari iterasi sebelumnya
+            if (! $so) {
+                throw new RuntimeException("{$d['so']} tidak ada. Jalankan SalesOrderSeeder dulu.");
             }
 
             $cancelled = isset($d['cancelled_date']);
@@ -82,6 +83,26 @@ class DeliverySeeder extends Seeder
 
             $this->db->transComplete();
         }
+
+        // ─── TAMBAHKAN BLOK INI ───
+        // Secara otomatis ubah status SO menjadi 'Selesai' jika sisa barangnya sudah 0
+        $this->db->query("
+            UPDATE sales_orders so
+            SET status = 'Selesai', updated_at = NOW()
+            WHERE so.status = 'Open'
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM sales_order_items soi
+                WHERE soi.sales_order_id = so.id
+                AND soi.quantity > COALESCE((
+                    SELECT SUM(di.quantity_delivered)
+                    FROM delivery_items di
+                    JOIN deliveries d ON d.id = di.delivery_id
+                    WHERE di.sales_order_item_id = soi.id 
+                      AND d.status = 'Aktif'
+                ), 0)
+            )
+        ");
     }
 
     /** Tulis stock_movements dan perbarui stock_balances (selalu berpasangan). */

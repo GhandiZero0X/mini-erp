@@ -149,13 +149,25 @@ class SalesOrderModel extends Model
             ->get()->getResultArray();
     }
 
-    /** Produk + stok saat ini (LEFT JOIN stock_balances) untuk pilihan di form SO. */
+    /** Produk + stok tersedia (Fisik - SO Open) untuk pilihan di form SO. */
     public function productOptions(): array
     {
         return $this->db->query(
             'SELECT p.id, p.code, p.name, u.code AS unit,
                     p.selling_price AS sale_price,
-                    COALESCE(sb.quantity, 0) AS stock_available
+                    -- Stok Fisik
+                    COALESCE(sb.quantity, 0) AS physical_stock,
+                    -- Stok Tersedia: Fisik dikurangi sisa barang di SO yang masih Open
+                    (COALESCE(sb.quantity, 0) - COALESCE(
+                        (SELECT SUM(soi.quantity - COALESCE(
+                                    (SELECT SUM(di.quantity_delivered) 
+                                     FROM delivery_items di 
+                                     JOIN deliveries d ON d.id = di.delivery_id 
+                                     WHERE di.sales_order_item_id = soi.id AND d.status = \'Aktif\'), 0))
+                         FROM sales_order_items soi 
+                         JOIN sales_orders so ON so.id = soi.sales_order_id 
+                         WHERE soi.product_id = p.id AND so.status = \'Open\'), 0
+                    )) AS stock_available
             FROM products p
             JOIN units u ON u.id = p.unit_id
             LEFT JOIN stock_balances sb ON sb.product_id = p.id
