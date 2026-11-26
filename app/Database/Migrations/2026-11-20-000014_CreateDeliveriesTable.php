@@ -32,7 +32,7 @@ class CreateDeliveriesTable extends Migration
         $this->forge->addForeignKey('cancelled_by', 'users', 'id', 'RESTRICT', 'RESTRICT', 'fk_dl_cancelled_by');
         $this->forge->createTable('deliveries');
 
-        $this->db->query("ALTER TABLE deliveries ADD CONSTRAINT chk_dl_status CHECK (status IN ('Aktif','Dibatalkan'))");
+        $this->db->query("ALTER TABLE deliveries ADD CONSTRAINT chk_dl_status CHECK (status IN ('Aktif','Dibatalkan', 'Terjadwal'))");
         $this->db->query("ALTER TABLE deliveries ADD CONSTRAINT chk_dl_cancel CHECK (status <> 'Dibatalkan' OR (cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL AND cancel_reason IS NOT NULL))");
     }
 
