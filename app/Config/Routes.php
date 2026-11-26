@@ -139,6 +139,7 @@ $routes->group('deliveries', ['filter' => 'auth:delivery,W'], static function ($
     $routes->get('new/(:num)', 'Deliveries::new/$1');
     $routes->post('new/(:num)', 'Deliveries::create/$1');
     $routes->post('(:num)/cancel', 'Deliveries::cancel/$1');
+    $routes->post('(:num)/activate', 'Deliveries::activate/$1'); 
 });
 
 // UC-15 Stok Produk & UC-16 Histori Mutasi. Semua peran dengan fitur ini; level R.

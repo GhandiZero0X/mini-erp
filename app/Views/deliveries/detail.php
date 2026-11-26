@@ -1,12 +1,16 @@
 <?php
 /**
- * UI-22 Detail Delivery (batal). Variabel: $dl (header + 'items', 'total_qty'), $errors.
+ * UI-22 Detail Delivery (batal & aktifkan). Variabel: $dl (header + 'items', 'total_qty'), $errors.
  */
 $this->extend('layouts/main');
 
 use Config\Documents;
 
-$canCancelDL = $dl['status'] === Documents::DL_ACTIVE && auth_can('delivery', 'W');
+// Bisa dibatalkan jika status Aktif ATAU Terjadwal
+$canCancelDL = in_array($dl['status'], [Documents::DL_ACTIVE, Documents::DL_SCHEDULED], true) && auth_can('delivery', 'W');
+
+// Hanya bisa diaktifkan jika statusnya Terjadwal
+$canActivateDL = $dl['status'] === Documents::DL_SCHEDULED && auth_can('delivery', 'W');
 ?>
 <?= $this->section('content') ?>
 
@@ -18,6 +22,17 @@ $canCancelDL = $dl['status'] === Documents::DL_ACTIVE && auth_can('delivery', 'W
     <div class="d-flex gap-2">
         <a href="<?= site_url('deliveries') ?>" class="btn btn-secondary">Kembali</a>
         <a href="<?= site_url('sales-orders/' . $dl['sales_order_id']) ?>" class="btn btn-outline-primary">Lihat SO</a>
+
+        <?php if ($canActivateDL): ?>
+        <form method="post" action="<?= site_url('deliveries/' . $dl['id'] . '/activate') ?>" class="d-inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-primary"
+                onclick="return confirm('Aktifkan pengiriman ini sekarang? Status akan berubah menjadi Aktif.')">
+                <i class="bi bi-play-circle me-1"></i>Mulai Pengiriman
+            </button>
+        </form>
+        <?php endif; ?>
+
         <?php if ($canCancelDL): ?>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
             <i class="bi bi-x-circle me-1"></i>Batalkan
@@ -105,6 +120,11 @@ $canCancelDL = $dl['status'] === Documents::DL_ACTIVE && auth_can('delivery', 'W
 <?php if ($dl['status'] === Documents::DL_ACTIVE): ?>
 <p class="text-muted small mt-3 mb-0">Stok produk di atas sudah berkurang sesuai jumlah dikirim dan tercatat pada
     histori mutasi stok.</p>
+<?php elseif ($dl['status'] === Documents::DL_SCHEDULED): ?>
+<p class="text-warning small mt-3 mb-0 fw-semibold">
+    <i class="bi bi-info-circle me-1"></i> Delivery ini berstatus Terjadwal. Stok fisik sudah dialokasikan dan dikurangi
+    dari gudang, namun barang belum dikirim.
+</p>
 <?php elseif ($dl['status'] === Documents::DL_CANCELLED): ?>
 <p class="text-muted small mt-3 mb-0">Delivery ini dibatalkan. Stok produk di atas sudah dikembalikan dan tercatat pada
     histori mutasi stok.</p>

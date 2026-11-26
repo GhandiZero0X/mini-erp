@@ -40,7 +40,9 @@ class SalesOrderModel extends Model
     /** SO Open yang masih memiliki sisa belum dikirim (untuk Gudang di UI-11). */
     public function listShippable(string $search = '', int $perPage = 10): array
     {
-        $active = Documents::DL_ACTIVE;
+        // Gunakan IN untuk membaca dua status
+        $activeStatuses = "'Aktif', 'Terjadwal'"; 
+        
         $this->select(
             'sales_orders.id, sales_orders.so_number, sales_orders.so_date,
              sales_orders.status, sales_orders.total_amount, c.name AS customer_name',
@@ -54,7 +56,7 @@ class SalesOrderModel extends Model
                                                         FROM delivery_items di
                                                         JOIN deliveries d ON d.id = di.delivery_id
                                                         WHERE di.sales_order_item_id = soi.id
-                                                          AND d.status = '{$active}'), 0))",
+                                                          AND d.status IN ({$activeStatuses})), 0))",
                 null,
                 false
             );
@@ -96,11 +98,11 @@ class SalesOrderModel extends Model
 
     public function itemsOf(int $soId): array
     {
-        $active    = Documents::DL_ACTIVE;
         $delivered = "(SELECT COALESCE(SUM(di.quantity_delivered), 0)
                     FROM delivery_items di
                     JOIN deliveries d ON d.id = di.delivery_id
-                    WHERE di.sales_order_item_id = soi.id AND d.status = '{$active}')";
+                    WHERE di.sales_order_item_id = soi.id AND d.status IN ('Aktif', 'Terjadwal'))";
+        
         $stock     = 'COALESCE((SELECT sb.quantity FROM stock_balances sb WHERE sb.product_id = soi.product_id), 0)';
 
         $rows = $this->db->query(
@@ -240,10 +242,10 @@ class SalesOrderModel extends Model
     }
 
     /** Produk + stok tersedia (Fisik - SO Open) untuk pilihan di form SO. */
-    public function productOptions(): array
+        public function productOptions(): array
     {
         return $this->db->query(
-            'SELECT p.id, p.code, p.name, u.code AS unit,
+            "SELECT p.id, p.code, p.name, u.code AS unit,
                     p.selling_price AS sale_price,
                     -- Stok Fisik
                     COALESCE(sb.quantity, 0) AS physical_stock,
@@ -253,15 +255,16 @@ class SalesOrderModel extends Model
                                     (SELECT SUM(di.quantity_delivered) 
                                      FROM delivery_items di 
                                      JOIN deliveries d ON d.id = di.delivery_id 
-                                     WHERE di.sales_order_item_id = soi.id AND d.status = \'Aktif\'), 0))
+                                     WHERE di.sales_order_item_id = soi.id 
+                                       AND d.status IN ('Aktif', 'Terjadwal')), 0)) -- <-- UBAH DI SINI
                          FROM sales_order_items soi 
                          JOIN sales_orders so ON so.id = soi.sales_order_id 
-                         WHERE soi.product_id = p.id AND so.status = \'Open\'), 0
+                         WHERE soi.product_id = p.id AND so.status = 'Open'), 0
                     )) AS stock_available
             FROM products p
             JOIN units u ON u.id = p.unit_id
             LEFT JOIN stock_balances sb ON sb.product_id = p.id
-            ORDER BY lower(p.name) ASC, p.id ASC'
+            ORDER BY lower(p.name) ASC, p.id ASC"
         )->getResultArray();
     }
 

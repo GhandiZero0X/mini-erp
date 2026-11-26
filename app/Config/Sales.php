@@ -45,6 +45,8 @@ class Sales extends BaseConfig
         'delivery_not_found'          => 'Delivery tidak ditemukan.',
         'delivery_not_receivable'     => 'SO tidak dapat dikirim (sudah dibatalkan atau sudah dikirim penuh).',
         'delivery_insufficient_stock' => 'Stok tidak mencukupi. Produk :produk tersedia :stok, dibutuhkan :butuh.',
+        'delivery_activated'          => 'Jadwal pengiriman berhasil diaktifkan.',
+        'delivery_not_scheduled'      => 'Hanya Delivery berstatus Terjadwal yang dapat diaktifkan.',
         'delivery_cancelled'          => 'Delivery berhasil dibatalkan dan stok dikembalikan.',
         'delivery_cancel_not_allowed' => 'Hanya Delivery berstatus Aktif yang dapat dibatalkan.',
     ];

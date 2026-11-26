@@ -32,10 +32,11 @@ class Documents extends BaseConfig
 
     // Status Delivery
     public const DL_ACTIVE    = 'Aktif';
+    public const DL_SCHEDULED = 'Terjadwal';
     public const DL_CANCELLED = 'Dibatalkan';
 
     public array $soStatuses = [self::SO_OPEN, self::SO_CANCELLED, self::SO_CLOSED];
-    public array $dlStatuses = [self::DL_ACTIVE, self::DL_CANCELLED];
+    public array $dlStatuses = [self::DL_ACTIVE, self::DL_SCHEDULED, self::DL_CANCELLED];
 
     /** Awalan nomor dokumen: PREFIX-YYYYMM-0001. */
     public array $prefixes = [
@@ -60,6 +61,7 @@ class Documents extends BaseConfig
         'Open'       => 'text-bg-primary',
         'Selesai'    => 'text-bg-info',
         'Aktif'      => 'text-bg-success',
+        'Terjadwal'  => 'text-bg-info',
         'Dibatalkan' => 'text-bg-danger',
     ];
 }

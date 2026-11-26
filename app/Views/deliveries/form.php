@@ -2,7 +2,6 @@
 /**
  * UI-13 Form Delivery. Variabel: $title, $so (header + 'items' dengan 'remaining', 'stock_available'),
  * $action, $today, $errors, $old.
- * Kuantitas diisi manual (default 0). Server memvalidasi sisa & stok; stok tidak cukup = rollback.
  */
 $this->extend('layouts/main');
 
@@ -53,6 +52,10 @@ $qtyErr  = (isset($errors['quantities']) && is_array($errors['quantities'])) ? $
             <?php if (isset($errors['delivery_date'])): ?>
             <div class="invalid-feedback d-block"><?= esc($errors['delivery_date']) ?></div>
             <?php endif; ?>
+            <div id="schedule-note" class="alert alert-info py-2 mt-2 d-none">
+                <i class="bi bi-info-circle me-1"></i> Karena tanggal pengiriman di masa depan, status DO akan menjadi
+                <strong>Terjadwal</strong>.
+            </div>
         </div>
     </div>
 
@@ -117,5 +120,34 @@ $qtyErr  = (isset($errors['quantities']) && is_array($errors['quantities'])) ? $
         <a href="<?= site_url('sales-orders') ?>" class="btn btn-secondary">Batal</a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var dateInput = document.getElementById('delivery_date');
+    var noteDiv = document.getElementById('schedule-note');
+
+    // Dapatkan tanggal hari ini dalam format YYYY-MM-DD
+    var today = new Date();
+    var dd = String(today.getDate()).padStart(2, '0');
+    var mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    var yyyy = today.getFullYear();
+    var todayStr = yyyy + '-' + mm + '-' + dd;
+
+    function checkSchedule() {
+        var selectedDate = dateInput.value;
+        if (selectedDate > todayStr) {
+            noteDiv.classList.remove('d-none');
+        } else {
+            noteDiv.classList.add('d-none');
+        }
+    }
+
+    // Panggil saat halaman pertama dimuat (untuk menangani jika ada validasi error)
+    checkSchedule();
+
+    // Panggil setiap kali user mengubah tanggal
+    dateInput.addEventListener('change', checkSchedule);
+});
+</script>
 
 <?= $this->endSection() ?>

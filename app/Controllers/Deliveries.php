@@ -96,4 +96,10 @@ class Deliveries extends BaseController
         if (! $result['ok'] && $result['errors'] !== []) { $redirect = $redirect->with('errors', $result['errors']); }
         return $redirect->with($result['ok'] ? 'success' : 'error', $result['message']);
     }
+
+    public function activate(int $id)
+    {
+        $result = $this->service()->activate($id);
+        return redirect()->to('/deliveries/' . $id)->with($result['ok'] ? 'success' : 'error', $result['message']);
+    }
 }

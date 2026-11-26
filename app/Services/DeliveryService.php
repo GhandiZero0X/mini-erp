@@ -111,6 +111,18 @@ class DeliveryService
         };
     }
 
+    public function activate(int $id): array
+    {
+        $status = $this->deliveries->activate($id);
+
+        return match ($status) {
+            'ok'            => $this->success('delivery_activated'),
+            'not_found'     => $this->failure('delivery_not_found', 'not_found'),
+            'not_scheduled' => $this->failure('delivery_not_scheduled', 'not_cancellable'),
+            default         => $this->failure('save_failed'),
+        };
+    }
+
     public static function clean(array $input): array
     {
         $q = [];

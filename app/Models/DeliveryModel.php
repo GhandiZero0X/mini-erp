@@ -113,13 +113,18 @@ class DeliveryModel extends Model
             if (! $so) { $this->db->transRollback(); return ['status' => 'not_found']; }
             if ($so['status'] !== Documents::SO_OPEN) { $this->db->transRollback(); return ['status' => 'so_not_shippable']; }
 
-            $active = Documents::DL_ACTIVE;
+            // Tentukan status (Aktif atau Terjadwal) berdasarkan tanggal
+            $status = ($date > date('Y-m-d')) ? Documents::DL_SCHEDULED : Documents::DL_ACTIVE;
+            
+            // Pengecekan delivered harus menghitung Aktif DAN Terjadwal
+            $activeStatuses = "'" . Documents::DL_ACTIVE . "', '" . Documents::DL_SCHEDULED . "'";
+
             $items  = $this->run(
                 "SELECT soi.id, soi.product_id, p.name AS product_name, soi.quantity,
                         COALESCE((SELECT SUM(di.quantity_delivered)
                                   FROM delivery_items di
                                   JOIN deliveries d ON d.id = di.delivery_id
-                                  WHERE di.sales_order_item_id = soi.id AND d.status = '{$active}'), 0) AS delivered
+                                  WHERE di.sales_order_item_id = soi.id AND d.status IN ({$activeStatuses})), 0) AS delivered
                  FROM sales_order_items soi
                  JOIN products p ON p.id = soi.product_id
                  WHERE soi.sales_order_id = ?
@@ -138,7 +143,7 @@ class DeliveryModel extends Model
 
             $lines   = [];
             $exceeds = false;
-            $isFullyDelivered = true; // <-- Tambahkan variabel ini
+            $isFullyDelivered = true;
 
             foreach ($items as $it) {
                 $itemId = (int) $it['id'];
@@ -154,7 +159,6 @@ class DeliveryModel extends Model
                     ];
                 }
 
-                // <-- TAMBAHKAN PENGECEKAN INI -->
                 if (($remaining[$itemId] - $qty) > 0) {
                     $isFullyDelivered = false;
                 }
@@ -166,7 +170,7 @@ class DeliveryModel extends Model
             $row    = $this->run(
                 'INSERT INTO deliveries (delivery_number, sales_order_id, delivery_date, status, created_by)
                  VALUES (?, ?, ?, ?, ?) RETURNING id',
-                [$number, $soId, $date, Documents::DL_ACTIVE, $userId]
+                [$number, $soId, $date, $status, $userId]
             )->getRowArray();
             $deliveryId = (int) $row['id'];
 
@@ -175,13 +179,13 @@ class DeliveryModel extends Model
                     'INSERT INTO delivery_items (delivery_id, sales_order_item_id, quantity_delivered) VALUES (?, ?, ?)',
                     [$deliveryId, $l['item_id'], $l['qty']]
                 );
+                // Stok fisik langsung dipotong untuk Aktif maupun Terjadwal
                 $stock->decrease(
                     $l['product_id'], $l['qty'], 'DELIVERY', $deliveryId, $number,
                     'Pengiriman barang ' . $number, $userId
                 );
             }
 
-            // <-- TAMBAHKAN BLOK INI UNTUK MENGUBAH STATUS DI DATABASE -->
             if ($isFullyDelivered) {
                 $this->run('UPDATE sales_orders SET status = ?, updated_at = now() WHERE id = ?', [Documents::SO_CLOSED, $soId]);
             }
@@ -208,20 +212,43 @@ class DeliveryModel extends Model
         }
     }
 
-        public function cancel(int $id, int $userId, string $reason): array
+    /**
+     * Aktifkan DO Terjadwal (Terjadwal -> Aktif)
+     * Stok TIDAK dikurangi lagi karena sudah dipotong saat pembuatan DO.
+     */
+    public function activate(int $id): string
+    {
+        $row = $this->db->table('deliveries')->where('id', $id)->get()->getRowArray();
+        if (! $row) return 'not_found';
+        if ($row['status'] !== Documents::DL_SCHEDULED) return 'not_scheduled';
+
+        $this->db->table('deliveries')->where('id', $id)->update([
+            'status' => Documents::DL_ACTIVE,
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
+
+        return 'ok';
+    }
+
+    public function cancel(int $id, int $userId, string $reason): array
     {
         $this->db->transBegin();
         try {
-            // 1. Ambil data DO beserta sales_order_id (TAMBAHKAN sales_order_id)
+            // 1. Ambil data DO beserta sales_order_id
             $dl = $this->run(
                 'SELECT status, delivery_number, sales_order_id FROM deliveries WHERE id = ? FOR UPDATE',
                 [$id]
             )->getRowArray();
             
             if (! $dl) { $this->db->transRollback(); return ['status' => 'not_found']; }
-            if ($dl['status'] !== Documents::DL_ACTIVE) { $this->db->transRollback(); return ['status' => 'not_active']; }
+            
+            // 2. Izinkan pembatalan untuk Aktif DAN Terjadwal
+            if (!in_array($dl['status'], [Documents::DL_ACTIVE, Documents::DL_SCHEDULED], true)) { 
+                $this->db->transRollback(); 
+                return ['status' => 'not_active']; 
+            }
 
-            // 2. Ambil item untuk mengembalikan stok
+            // 3. Ambil item untuk mengembalikan stok
             $items = $this->run(
                 'SELECT soi.product_id, di.quantity_delivered
                  FROM delivery_items di
@@ -231,7 +258,7 @@ class DeliveryModel extends Model
                 [$id]
             )->getResultArray();
 
-            // 3. Ubah status Delivery menjadi Dibatalkan
+            // 4. Ubah status Delivery menjadi Dibatalkan
             $this->run(
                 'UPDATE deliveries
                  SET status = ?, cancelled_by = ?, cancelled_at = now(), cancel_reason = ?, updated_at = now()
@@ -239,13 +266,13 @@ class DeliveryModel extends Model
                 [Documents::DL_CANCELLED, $userId, $reason, $id]
             );
 
-            // 4. KEMBALIKAN STATUS SO MENJADI OPEN
+            // 5. KEMBALIKAN STATUS SO MENJADI OPEN
             $this->run(
                 'UPDATE sales_orders SET status = ?, updated_at = now() WHERE id = ?', 
                 [Documents::SO_OPEN, $dl['sales_order_id']]
             );
 
-            // 5. Kembalikan stok produk
+            // 6. Kembalikan stok produk (karena saat dibuat, stok sudah dikurangi baik Aktif maupun Terjadwal)
             $stock = new StockService();
             foreach ($items as $it) {
                 $stock->increase(
