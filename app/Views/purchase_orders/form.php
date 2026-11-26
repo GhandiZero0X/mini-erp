@@ -1,9 +1,6 @@
 <?php
 /**
  * UI-08 Form Purchase Order. Variabel: $title, $suppliers, $products, $action, $today, $errors, $old, $preselect.
- * $preselect: baris produk terpilih dari dashboard (opsional, mis. tombol "Buat PO" di /dashboard).
- * Baris detail dinamis ditangani JavaScript di bawah. Subtotal/total di layar hanya tampilan;
- * server selalu menghitung ulang dari kuantitas x harga satuan (BR-10).
  */
 $this->extend('layouts/main');
 
@@ -12,20 +9,16 @@ $dateVal     = (string) (($old['po_date'] ?? '') !== '' ? $old['po_date'] : $tod
 $oldRows     = (isset($old['items']) && is_array($old['items'])) ? $old['items'] : [];
 $rowErrors   = (isset($errors['item_rows']) && is_array($errors['item_rows'])) ? $errors['item_rows'] : [];
 $cannotSave  = $suppliers === [] || $products === [];
-$preselect   = $preselect ?? null;                            // ← BARU
+$preselect   = $preselect ?? null;
 
-// Harga default dari harga beli produk; ".00" disingkat
 $priceText = static function ($v): string {
     $v = (string) $v;
-
     return str_ends_with($v, '.00') ? substr($v, 0, -3) : $v;
 };
 
 $err = static fn (string $f): string => isset($errors[$f]) ? '<div class="invalid-feedback d-block">' . esc($errors[$f]) . '</div>' : '';
 $cls = static fn (string $f): string => isset($errors[$f]) ? ' is-invalid' : '';
 
-// Opsi produk dipakai ulang di setiap baris.
-// data-available = sisa kapasitas (max_stock - current - pending) bila ada; '' bila tanpa batas atas.
 ob_start();
 ?>
 <option value="">- Pilih produk -</option>
@@ -45,83 +38,361 @@ ob_start();
 </option>
 <?php endforeach; ?>
 <?php $productOptions = ob_get_clean(); ?>
+
 <?= $this->section('content') ?>
 
-<h1 class="h4 mb-3"><?= esc($title) ?></h1>
+<style>
+/* Prefiks "pof-" (Purchase Order Form) */
+.pof-head {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    padding: 1.35rem 1.6rem;
+    color: #fff;
+    background: linear-gradient(125deg, #4338ca 0%, #6d4aed 55%, #0ea5c6 130%);
+    box-shadow: 0 18px 40px -24px rgba(67, 56, 202, .7);
+}
+
+.pof-head::before {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    right: -60px;
+    top: -100px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .11);
+}
+
+.pof-head>* {
+    position: relative;
+    z-index: 1;
+}
+
+.pof-head-ico {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .2);
+    font-size: 1.35rem;
+}
+
+.pof-head h2 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    margin: 0;
+}
+
+.pof-head p {
+    margin: .1rem 0 0;
+    font-size: .86rem;
+    opacity: .88;
+}
+
+.pof-head .btn-back {
+    border: 0;
+    color: #fff;
+    background: rgba(255, 255, 255, .18);
+}
+
+.pof-head .btn-back:hover {
+    background: rgba(255, 255, 255, .3);
+}
+
+/* Form section */
+.pof-form {
+    margin-top: 1.1rem;
+}
+
+.pof-sec {
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid var(--app-line);
+}
+
+.pof-sec:last-of-type {
+    border-bottom: 0;
+}
+
+.pof-sec-head {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.1rem;
+}
+
+.pof-sec-ico {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: #eef0ff;
+    color: #4338ca;
+    font-size: 1rem;
+}
+
+.pof-sec-head h3 {
+    font-size: .98rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.pof-sec-head p {
+    margin: 0;
+    font-size: .8rem;
+    color: var(--app-muted);
+}
+
+.pof-form .form-label {
+    font-size: .85rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+}
+
+.pof-form .form-text {
+    font-size: .78rem;
+}
+
+.pof-form .input-group-text {
+    background: #f8f9fd;
+    border-color: #dfe3ee;
+    color: var(--app-muted);
+    font-weight: 700;
+}
+
+.pof-form .form-control[disabled] {
+    background: #f4f5fa;
+    color: #6b7385;
+    cursor: not-allowed;
+}
+
+/* Tabel item */
+.pof-items-table th {
+    background: #f8f9fd;
+    color: var(--app-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--app-line);
+    white-space: nowrap;
+}
+
+.pof-items-table td {
+    vertical-align: middle;
+    padding: .5rem;
+}
+
+.pof-items-table .form-control-sm {
+    font-size: .85rem;
+}
+
+/* Total footer */
+.pof-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #fafbff;
+    border-top: 1px solid var(--app-line);
+}
+
+.pof-total-label {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--app-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.pof-total-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--app-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Footer action */
+.pof-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: 1.15rem 1.75rem;
+    background: #fafbff;
+    border-top: 1px solid var(--app-line);
+    border-radius: 0 0 18px 18px;
+}
+
+/* Alert */
+.pof-alert-warn {
+    display: flex;
+    gap: .75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    background: #fff4d6;
+    color: #946500;
+    font-size: .86rem;
+    border: 1px solid #fde8b0;
+    margin-bottom: 1rem;
+}
+
+.pof-alert-warn i {
+    flex: 0 0 auto;
+    margin-top: .1rem;
+}
+
+.pof-alert-warn a {
+    color: #946500;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+@media (max-width: 767.98px) {
+    .pof-head {
+        padding: 1.1rem;
+    }
+
+    .pof-sec,
+    .pof-foot {
+        padding-left: 1.1rem;
+        padding-right: 1.1rem;
+    }
+
+    .pof-total-row {
+        padding-left: 1.1rem;
+        padding-right: 1.1rem;
+    }
+}
+</style>
+
+<!-- Header -->
+<div class="pof-head d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="pof-head-ico" aria-hidden="true"><i class="bi bi-file-earmark-plus"></i></span>
+        <div>
+            <h2><?= esc($title) ?></h2>
+            <p>Lengkapi data pembelian dan daftar produk yang akan dipesan.</p>
+        </div>
+    </div>
+    <a href="<?= site_url('purchase-orders') ?>" class="btn btn-sm btn-back">
+        <i class="bi bi-arrow-left me-1"></i>Kembali ke daftar
+    </a>
+</div>
+
+<div class="mb-3"></div>
 
 <?php if ($cannotSave): ?>
-<div class="alert alert-warning">
-    Purchase Order memerlukan minimal satu supplier dan satu produk pada master data.
-    <a href="<?= site_url('suppliers') ?>" class="alert-link">Supplier</a> |
-    <a href="<?= site_url('products') ?>" class="alert-link">Produk</a>
+<div class="pof-alert-warn">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div>
+        Purchase Order memerlukan minimal satu supplier dan satu produk pada master data.
+        <a href="<?= site_url('suppliers') ?>">Supplier</a> &middot;
+        <a href="<?= site_url('products') ?>">Produk</a>
+    </div>
 </div>
 <?php endif; ?>
 
-<form method="post" action="<?= esc($action, 'attr') ?>" class="card card-body" novalidate>
-    <?= csrf_field() ?>
+<div class="pof-form">
+    <form method="post" action="<?= esc($action, 'attr') ?>" class="card" novalidate>
+        <?= csrf_field() ?>
 
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <label class="form-label">Nomor PO</label>
-            <input type="text" class="form-control" value="Otomatis saat disimpan" disabled>
+        <!-- 1. Informasi PO -->
+        <section class="pof-sec">
+            <div class="pof-sec-head">
+                <span class="pof-sec-ico"><i class="bi bi-info-circle"></i></span>
+                <div>
+                    <h3>Informasi Purchase Order</h3>
+                    <p>Tanggal dan supplier tujuan pesanan.</p>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Nomor PO</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                        <input type="text" class="form-control" value="Otomatis saat disimpan" disabled>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="po_date" class="form-label">Tanggal <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                        <input type="date" id="po_date" name="po_date" class="form-control<?= $cls('po_date') ?>"
+                            value="<?= esc($dateVal, 'attr') ?>">
+                    </div>
+                    <?= $err('po_date') ?>
+                </div>
+                <div class="col-md-4">
+                    <label for="supplier_id" class="form-label">Supplier <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-shop"></i></span>
+                        <select id="supplier_id" name="supplier_id" class="form-select<?= $cls('supplier_id') ?>">
+                            <option value="">- Pilih supplier -</option>
+                            <?php foreach ($suppliers as $s): ?>
+                            <option value="<?= (int) $s['id'] ?>"
+                                <?= $supplierSel === (int) $s['id'] ? 'selected' : '' ?>>
+                                <?= esc($s['name']) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?= $err('supplier_id') ?>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Detail Produk -->
+        <section class="pof-sec">
+            <div class="pof-sec-head">
+                <span class="pof-sec-ico"><i class="bi bi-box-seam"></i></span>
+                <div>
+                    <h3>Detail Produk</h3>
+                    <p>Tambahkan produk yang akan dipesan beserta kuantitas dan harga.</p>
+                </div>
+            </div>
+
+            <?= $err('items') ?>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-2 pof-items-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 260px;">Produk</th>
+                            <th style="width: 80px;">Satuan</th>
+                            <th style="width: 130px;" class="text-end">Kuantitas</th>
+                            <th style="width: 180px;" class="text-end">Harga Satuan</th>
+                            <th style="width: 170px;" class="text-end">Subtotal</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary btn-sm" id="addRow">
+                <i class="bi bi-plus-lg me-1"></i>Tambah Baris
+            </button>
+        </section>
+
+        <div class="pof-total-row">
+            <span class="pof-total-label">Total Pesanan</span>
+            <span class="pof-total-value" id="grandTotal">Rp 0</span>
         </div>
-        <div class="col-md-4 mb-3">
-            <label for="po_date" class="form-label">Tanggal <span class="text-danger">*</span></label>
-            <input type="date" id="po_date" name="po_date" class="form-control<?= $cls('po_date') ?>"
-                value="<?= esc($dateVal, 'attr') ?>">
-            <?= $err('po_date') ?>
+
+        <div class="pof-foot">
+            <button type="submit" class="btn btn-primary px-4" <?= $cannotSave ? 'disabled' : '' ?>>
+                <i class="bi bi-check2-circle me-1"></i>Simpan PO
+            </button>
+            <a href="<?= site_url('purchase-orders') ?>" class="btn btn-outline-secondary">Batal</a>
         </div>
-        <div class="col-md-4 mb-3">
-            <label for="supplier_id" class="form-label">Supplier <span class="text-danger">*</span></label>
-            <select id="supplier_id" name="supplier_id" class="form-select<?= $cls('supplier_id') ?>">
-                <option value="">- Pilih supplier -</option>
-                <?php foreach ($suppliers as $s): ?>
-                <option value="<?= (int) $s['id'] ?>" <?= $supplierSel === (int) $s['id'] ? 'selected' : '' ?>>
-                    <?= esc($s['name']) ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
-            <?= $err('supplier_id') ?>
-        </div>
-    </div>
-
-    <h2 class="h6 mt-2">Detail Produk</h2>
-    <?= $err('items') ?>
-
-    <div class="table-responsive mb-2">
-        <table class="table table-bordered align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Produk</th>
-                    <th style="width: 80px;">Satuan</th>
-                    <th style="width: 130px;" class="text-end">Kuantitas</th>
-                    <th style="width: 180px;" class="text-end">Harga Satuan (Rp)</th>
-                    <th style="width: 170px;" class="text-end">Subtotal</th>
-                    <th style="width: 50px;"></th>
-                </tr>
-            </thead>
-            <tbody id="itemsBody"></tbody>
-            <tfoot>
-                <tr>
-                    <th colspan="4" class="text-end">Total</th>
-                    <th class="text-end text-nowrap" id="grandTotal">Rp 0</th>
-                    <th></th>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-
-    <div class="mb-4">
-        <button type="button" class="btn btn-outline-primary btn-sm" id="addRow">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Baris
-        </button>
-    </div>
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary" <?= $cannotSave ? 'disabled' : '' ?>>Simpan</button>
-        <a href="<?= site_url('purchase-orders') ?>" class="btn btn-secondary">Batal</a>
-    </div>
-</form>
+    </form>
+</div>
 
 <template id="rowTemplate">
     <tr class="item-row">
@@ -132,18 +403,19 @@ ob_start();
             <div class="form-text js-capacity"></div>
             <div class="invalid-feedback d-block js-err-product_id"></div>
         </td>
-        <td class="js-unit text-muted">-</td>
+        <td class="js-unit text-muted text-center">-</td>
         <td>
             <input type="text" inputmode="numeric" autocomplete="off"
-                class="form-control form-control-sm text-end js-qty" name="items[__IDX__][quantity]">
+                class="form-control form-control-sm text-end js-qty" name="items[__IDX__][quantity]" placeholder="0">
             <div class="invalid-feedback d-block js-err-quantity"></div>
         </td>
         <td>
             <input type="text" inputmode="decimal" autocomplete="off"
-                class="form-control form-control-sm text-end js-price" name="items[__IDX__][unit_price]">
+                class="form-control form-control-sm text-end js-price" name="items[__IDX__][unit_price]"
+                placeholder="0">
             <div class="invalid-feedback d-block js-err-unit_price"></div>
         </td>
-        <td class="text-end text-nowrap js-subtotal">Rp 0</td>
+        <td class="text-end text-nowrap fw-bold js-subtotal">Rp 0</td>
         <td class="text-center">
             <button type="button" class="btn btn-sm btn-outline-danger js-remove" title="Hapus baris"
                 aria-label="Hapus baris">
@@ -163,10 +435,9 @@ ob_start();
     var rowErrors =
         <?= json_encode($rowErrors, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>;
     var preselect =
-        <?= json_encode($preselect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>; // ← BARU
+        <?= json_encode($preselect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>;
     var nextIdx = 0;
 
-    // Hanya tampilan. Server menghitung ulang (BR-10).
     function rupiah(cents) {
         return 'Rp ' + (cents / 100).toLocaleString('id-ID', {
             maximumFractionDigits: 2
@@ -194,26 +465,19 @@ ob_start();
 
     function setError(tr, field, message) {
         var box = tr.querySelector('.js-err-' + field);
-        if (box) {
-            box.textContent = message || '';
-        }
+        if (box) box.textContent = message || '';
         var input = field === 'product_id' ? tr.querySelector('.js-product') :
             field === 'quantity' ? tr.querySelector('.js-qty') : tr.querySelector('.js-price');
-        if (input) {
-            input.classList.toggle('is-invalid', !!message);
-        }
+        if (input) input.classList.toggle('is-invalid', !!message);
     }
 
-    // ← BARU: tampilkan info kapasitas di bawah dropdown
     function syncCapacity(tr) {
         var opt = tr.querySelector('.js-product').selectedOptions[0];
         var box = tr.querySelector('.js-capacity');
         var avail = opt ? opt.dataset.available : '';
         var max = opt ? opt.dataset.max : '';
 
-        if (!box) {
-            return;
-        }
+        if (!box) return;
         if (avail === '' || avail === undefined || max === '') {
             box.textContent = '';
             box.className = 'form-text js-capacity';
@@ -237,13 +501,9 @@ ob_start();
     }
 
     function addRow(idx, data, errs) {
-        if (idx === null || idx === undefined) {
-            idx = nextIdx;
-        }
+        if (idx === null || idx === undefined) idx = nextIdx;
         var n = parseInt(idx, 10);
-        if (!isNaN(n) && n >= nextIdx) {
-            nextIdx = n + 1;
-        }
+        if (!isNaN(n) && n >= nextIdx) nextIdx = n + 1;
 
         var holder = document.createElement('template');
         holder.innerHTML = tplHtml.split('__IDX__').join(String(idx));
@@ -289,9 +549,7 @@ ob_start();
         });
         tr.querySelector('.js-remove').addEventListener('click', function() {
             tr.remove();
-            if (!body.querySelector('tr.item-row')) {
-                addRow();
-            }
+            if (!body.querySelector('tr.item-row')) addRow();
             recalc();
         });
         return tr;
@@ -303,12 +561,10 @@ ob_start();
 
     var keys = Object.keys(initial || {});
     if (keys.length === 0) {
-        // ← BARU: pre-select produk dari dashboard bila ada ?product_id=X
         var firstTr = addRow();
         if (preselect && preselect.id) {
             var sel = firstTr.querySelector('.js-product');
             sel.value = String(preselect.id);
-            // Trigger change supaya unit, harga, dan kapasitas ikut terisi
             sel.dispatchEvent(new Event('change'));
             firstTr.querySelector('.js-qty').focus();
         }
