@@ -167,15 +167,19 @@ $routes->group('', ['filter' => 'auth:stock_movement'], static function ($routes
 // UC-17 s.d UC-20: Laporan (Reporting)
 // ==========================================
 $routes->group('reports', ['filter' => 'auth'], static function ($routes) {
-    // Laporan Pembelian (Manajer, Admin, Purchasing)
-    $routes->get('purchases', 'Reports::purchases', ['filter' => 'auth:report_purchase']);
-    
-    // Laporan Penjualan (Manajer, Admin, Sales)
-    $routes->get('sales', 'Reports::sales', ['filter' => 'auth:report_sales']);
-    
-    // Laporan Stok (Manajer, Admin, Gudang, Sales)
-    $routes->get('stock', 'Reports::stock', ['filter' => 'auth:report_stock']);
-    
-    // Produk Terlaris (Manajer, Admin)
-    $routes->get('top-products', 'Reports::topProducts', ['filter' => 'auth:report_top']);
+    // Laporan Pembelian
+    $routes->get('purchases',          'Reports::purchases',         ['filter' => 'auth:report_purchase']);
+    $routes->get('purchases/download', 'Reports::downloadPurchases', ['filter' => 'auth:report_purchase']);
+
+    // Laporan Penjualan
+    $routes->get('sales',          'Reports::sales',         ['filter' => 'auth:report_sales']);
+    $routes->get('sales/download', 'Reports::downloadSales', ['filter' => 'auth:report_sales']);
+
+    // Laporan Stok
+    $routes->get('stock',          'Reports::stock',         ['filter' => 'auth:report_stock']);
+    $routes->get('stock/download', 'Reports::downloadStock', ['filter' => 'auth:report_stock']);
+
+    // Produk Terlaris
+    $routes->get('top-products',          'Reports::topProducts',         ['filter' => 'auth:report_top']);
+    $routes->get('top-products/download', 'Reports::downloadTopProducts', ['filter' => 'auth:report_top']);
 });

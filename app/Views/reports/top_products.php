@@ -308,6 +308,13 @@
             <p>Peringkat produk berdasarkan kuantitas terjual pada periode tertentu.</p>
         </div>
     </div>
+
+    <a href="<?= site_url('reports/top-products/download?' . http_build_query([
+        'start' => $filter['start'],
+        'end'   => $filter['end'],
+    ])) ?>" class="btn btn-light fw-semibold shadow-sm">
+        <i class="bi bi-file-earmark-excel me-1 text-success"></i>Unduh Excel
+    </a>
 </div>
 
 <div class="mb-3"></div>

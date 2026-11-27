@@ -289,8 +289,18 @@
             <p>Rangkuman pergerakan dan posisi stok produk.</p>
         </div>
     </div>
-    <div class="lstk-head-badge">
-        Total Produk: <strong><?= $totalItems ?></strong>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="lstk-head-badge">
+            Total Produk: <strong><?= $totalItems ?></strong>
+        </div>
+        <a href="<?= site_url('reports/stock/download?' . http_build_query([
+            'start'       => $filter['start'],
+            'end'         => $filter['end'],
+            'category_id' => $categoryId ?: null,
+        ])) ?>" class="btn btn-light fw-semibold shadow-sm">
+            <i class="bi bi-file-earmark-excel me-1 text-success"></i>Unduh Excel
+        </a>
     </div>
 </div>
 
