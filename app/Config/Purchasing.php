@@ -6,6 +6,14 @@ use CodeIgniter\Config\BaseConfig;
 
 class Purchasing extends BaseConfig
 {
+    /**
+     * true  = PO DITOLAK bila qty melebihi sisa kapasitas max_stock (perilaku lama).
+     * false = melebihi max_stock hanya MEMUNCULKAN PERINGATAN di form, PO tetap bisa disimpan.
+     *         (max_stock dianggap target persediaan, bukan batas keras: PO sering harus
+     *          memenuhi pesanan customer yang jumlahnya melebihi max_stock.)
+     */
+    public bool $enforceMaxStock = false;
+
     public array $messages = [
         // UC-07 Membuat Purchase Order
         'supplier_required'  => 'Supplier wajib dipilih.',

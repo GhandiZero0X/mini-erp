@@ -324,7 +324,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 }
 
 .ts-dropdown .pof-ts-sub.is-full {
-    color: #dc3545;
+    color: #946500;
+    font-weight: 600;
+}
+
+.pof-cap-warn {
+    color: #946500;
     font-weight: 600;
 }
 </style>
@@ -569,9 +574,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
         var a = p.available;
         var max = p.max;
+        var qty = parseInt(tr.querySelector('.js-qty').value || '0', 10) || 0;
+
+        // Peringatan saja (tidak memblokir): PO boleh melebihi max_stock, mis. untuk memenuhi pesanan customer
         if (a <= 0) {
-            box.textContent = '⚠ Stok sudah mencapai batas maksimal.';
-            box.className = 'form-text text-danger fw-semibold js-capacity';
+            box.textContent = '⚠ Stok sudah mencapai batas maksimal (' + max +
+                '). PO tetap bisa dibuat bila memang dibutuhkan.';
+            box.className = 'form-text pof-cap-warn js-capacity';
+        } else if (qty > a) {
+            box.textContent = '⚠ Melebihi kapasitas: sisa ' + a + ' dari ' + max +
+                '. PO tetap bisa dibuat bila memang dibutuhkan.';
+            box.className = 'form-text pof-cap-warn js-capacity';
         } else {
             box.textContent = 'Sisa kapasitas: ' + a + ' dari ' + max;
             box.className = 'form-text js-capacity';
@@ -615,7 +628,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                     var sub = '';
                     if (p.max !== null && p.available !== null) {
                         sub = (p.available <= 0) ?
-                            '<div class="pof-ts-sub is-full">Stok sudah mencapai batas maksimal</div>' :
+                            '<div class="pof-ts-sub is-full">Kapasitas penuh (maks ' + p.max +
+                            ')</div>' :
                             '<div class="pof-ts-sub">Tersisa ' + p.available + ' dari ' + p.max + ' ' +
                             esc(p.unit) + '</div>';
                     }
@@ -657,6 +671,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         });
         qty.addEventListener('input', function() {
             setError(tr, 'quantity', '');
+            syncCapacity(tr);
             recalc();
         });
         prc.addEventListener('input', function() {

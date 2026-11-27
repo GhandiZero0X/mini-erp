@@ -16,6 +16,7 @@ class PurchaseOrderService
     private PurchaseOrderModel $orders;
     private ProductModel $products;
     private array $msg;
+    private bool $enforceMaxStock;
 
     public function __construct(
         ?PurchaseOrderModel $orders = null,
@@ -32,6 +33,7 @@ class PurchaseOrderService
             ],
             ($cfg ?? config('Purchasing'))->messages
         );
+        $this->enforceMaxStock = (bool) (($cfg ?? config('Purchasing'))->enforceMaxStock ?? false);
     }
 
     public function listPage(string $search = '', string $status = '', bool $receivableOnly = false): array
@@ -382,6 +384,12 @@ class PurchaseOrderService
      */
     private function checkStockLimits(array $in, array $errors): array
     {
+        // max_stock hanya batas keras bila Config\Purchasing::$enforceMaxStock = true.
+        // Selain itu form hanya menampilkan peringatan (PO boleh memesan melebihi max_stock).
+        if (! $this->enforceMaxStock) {
+            return $errors;
+        }
+
         if ($in['rows'] === [] || isset($errors['items'])) {
             return $errors;
         }
