@@ -20,17 +20,24 @@ $priceText = static function ($v): string {
 $err = static fn (string $f): string => isset($errors[$f]) ? '<div class="invalid-feedback d-block">' . esc($errors[$f]) . '</div>' : '';
 $cls = static fn (string $f): string => isset($errors[$f]) ? ' is-invalid' : '';
 
-ob_start();
+// Daftar produk dikirim SEKALI ke JS (bukan di-render per baris) agar ringan walau produk banyak.
+$productsJs = array_map(static fn (array $p): array => [
+    'id'    => (string) (int) $p['id'],
+    'code'  => (string) $p['code'],
+    'name'  => (string) $p['name'],
+    'label' => $p['code'] . ' - ' . $p['name'],
+    'unit'  => (string) $p['unit'],
+    'price' => $priceText($p['sale_price']),
+    'stock' => (int) $p['stock_available'],
+], $products);
+$jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE;
 ?>
-<option value="">- Pilih produk -</option>
-<?php foreach ($products as $p): ?>
-<option value="<?= (int) $p['id'] ?>" data-unit="<?= esc($p['unit'], 'attr') ?>"
-    data-price="<?= esc($priceText($p['sale_price']), 'attr') ?>" data-stock="<?= (int) $p['stock_available'] ?>">
-    <?= esc($p['code'] . ' - ' . $p['name']) ?></option>
-<?php endforeach; ?>
-<?php $productOptions = ob_get_clean(); ?>
 
 <?= $this->section('content') ?>
+
+<!-- Tom Select (dropdown + pencarian). Bisa diunduh & disimpan lokal di public/ bila perlu offline. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
 <style>
 /* Prefiks "so-" */
@@ -256,6 +263,57 @@ ob_start();
         padding-right: 1.1rem;
     }
 }
+
+/* Tom Select: menyatu dengan input-group & state error */
+.input-group>.ts-wrapper {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+}
+
+.input-group>.ts-wrapper .ts-control {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.ts-wrapper.is-invalid .ts-control {
+    border-color: #dc3545;
+}
+
+/* Field tampil seperti select biasa: tanpa kursor ketik, pencarian ada di dalam dropdown */
+.ts-wrapper.single .ts-control,
+.ts-wrapper.single .ts-control * {
+    cursor: pointer;
+}
+
+.ts-wrapper.single .ts-control>input {
+    caret-color: transparent;
+}
+
+.ts-dropdown .dropdown-input {
+    margin: .4rem;
+    width: calc(100% - .8rem);
+    border-radius: 8px;
+}
+
+.so-items-table .ts-wrapper {
+    min-width: 260px;
+}
+
+.so-items-table .ts-control {
+    font-size: .85rem;
+    padding-top: .25rem;
+    padding-bottom: .25rem;
+}
+
+.ts-dropdown {
+    z-index: 2000;
+}
+
+.ts-dropdown .so-ts-sub {
+    font-size: .78rem;
+    color: #6b7385;
+}
 </style>
 
 <div class="so-fhead d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -388,9 +446,7 @@ ob_start();
 <template id="rowTemplate">
     <tr class="item-row">
         <td style="min-width: 260px;">
-            <select class="form-select form-select-sm js-product" name="items[__IDX__][product_id]">
-                <?= $productOptions ?>
-            </select>
+            <select class="js-product" name="items[__IDX__][product_id]" autocomplete="off"></select>
             <div class="invalid-feedback d-block js-err-product_id"></div>
         </td>
         <td class="js-unit text-muted text-center">-</td>
@@ -429,6 +485,26 @@ ob_start();
         <?= json_encode($rowErrors, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>;
     var nextIdx = 0;
 
+    // Produk: dikirim sekali dari server, dicari berdasarkan id
+    var products =
+        <?= json_encode($productsJs, $jsonFlags) ?>;
+    var productMap = {};
+    products.forEach(function(p) {
+        productMap[p.id] = p;
+    });
+
+    // Customer: dropdown yang bisa diketik
+    new TomSelect('#customer_id', {
+        plugins: ['dropdown_input'], // kotak cari di dalam daftar, field tampil seperti select biasa
+        maxOptions: 100,
+        placeholder: '- Pilih customer -',
+        render: {
+            no_results: function() {
+                return '<div class="no-results">Customer tidak ditemukan</div>';
+            }
+        }
+    });
+
     function rupiah(cents) {
         return 'Rp ' + (cents / 100).toLocaleString('id-ID', {
             maximumFractionDigits: 2
@@ -460,22 +536,30 @@ ob_start();
         var input = field === 'product_id' ? tr.querySelector('.js-product') :
             field === 'quantity' ? tr.querySelector('.js-qty') : tr.querySelector('.js-price');
         if (input) input.classList.toggle('is-invalid', !!message);
+        if (field === 'product_id') {
+            var w = tr.querySelector('.ts-wrapper');
+            if (w) w.classList.toggle('is-invalid', !!message);
+        }
+    }
+
+    function selectedProduct(tr) {
+        return productMap[tr.querySelector('.js-product').value] || null;
     }
 
     function syncUnit(tr) {
-        var opt = tr.querySelector('.js-product').selectedOptions[0];
-        tr.querySelector('.js-unit').textContent = (opt && opt.dataset.unit) ? opt.dataset.unit : '-';
+        var p = selectedProduct(tr);
+        tr.querySelector('.js-unit').textContent = p ? p.unit : '-';
     }
 
     function checkStock(tr) {
-        var opt = tr.querySelector('.js-product').selectedOptions[0];
+        var p = selectedProduct(tr);
         var badge = tr.querySelector('.js-stock-badge');
-        if (!opt || !opt.value) {
+        if (!p) {
             badge.textContent = '-';
             badge.className = 'badge text-bg-secondary js-stock-badge';
             return;
         }
-        var stock = parseInt(opt.dataset.stock || '0', 10);
+        var stock = p.stock;
         var qty = parseInt(tr.querySelector('.js-qty').value || '0', 10);
         if (qty > stock) {
             badge.textContent = 'Kurang (' + stock + ')';
@@ -500,8 +584,34 @@ ob_start();
         var qty = tr.querySelector('.js-qty');
         var prc = tr.querySelector('.js-price');
 
+        // Dropdown produk yang bisa diketik (cari berdasarkan kode atau nama)
+        tr._ts = new TomSelect(sel, {
+            plugins: ['dropdown_input'],
+            options: products,
+            items: (data && data.product_id) ? [String(data.product_id)] : [],
+            valueField: 'id',
+            labelField: 'label',
+            searchField: ['code', 'name'],
+            maxOptions: 50,
+            create: false,
+            dropdownParent: 'body', // agar tidak terpotong oleh .table-responsive
+            placeholder: '- Pilih produk -',
+            render: {
+                option: function(p, esc) {
+                    return '<div><div class="fw-semibold">' + esc(p.code) + ' - ' + esc(p.name) +
+                        '</div>' +
+                        '<div class="so-ts-sub">Stok ' + p.stock + ' ' + esc(p.unit) + '</div></div>';
+                },
+                item: function(p, esc) {
+                    return '<div>' + esc(p.label) + '</div>';
+                },
+                no_results: function() {
+                    return '<div class="no-results">Produk tidak ditemukan</div>';
+                }
+            }
+        });
+
         if (data) {
-            sel.value = String(data.product_id || '');
             qty.value = data.quantity || '';
             prc.value = data.unit_price || '';
         }
@@ -516,8 +626,8 @@ ob_start();
 
         sel.addEventListener('change', function() {
             syncUnit(tr);
-            var opt = sel.selectedOptions[0];
-            var def = (opt && opt.dataset.price) ? opt.dataset.price : '';
+            var p = productMap[sel.value];
+            var def = p ? p.price : '';
             if (prc.value.trim() === '' || prc.value === tr.dataset.auto) {
                 prc.value = def;
                 tr.dataset.auto = def;
@@ -536,6 +646,7 @@ ob_start();
             recalc();
         });
         tr.querySelector('.js-remove').addEventListener('click', function() {
+            if (tr._ts) tr._ts.destroy();
             tr.remove();
             if (!body.querySelector('tr.item-row')) addRow();
             recalc();
@@ -546,7 +657,7 @@ ob_start();
     }
 
     document.getElementById('addRow').addEventListener('click', function() {
-        addRow().querySelector('.js-product').focus();
+        addRow()._ts.focus();
     });
 
     var keys = Object.keys(initial || {});
