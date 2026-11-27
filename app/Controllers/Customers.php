@@ -23,20 +23,28 @@ class Customers extends BaseController
     /** GET /customers */
     public function index()
     {
-        $data = $this->service()->listPage();
+        $q    = $this->request->getGet('q');
+        $data = $this->service()->listPage(is_string($q) ? $q : '');
 
         // Menghapus baris terakhir di halaman terakhir meninggalkan halaman kosong: mundur ke halaman terakhir
         $page = (int) $this->request->getGet('page');
         if ($data['rows'] === [] && $page > 1) {
             $last = max(1, $data['pager']->getPageCount());
 
-            return redirect()->to('/customers' . ($last > 1 ? '?page=' . $last : ''));
+            // Pertahankan kata kunci pencarian saat mundur ke halaman terakhir
+            $query = $data['search'] !== '' ? ['q' => $data['search']] : [];
+            if ($last > 1) {
+                $query['page'] = $last;
+            }
+
+            return redirect()->to('/customers' . ($query !== [] ? '?' . http_build_query($query) : ''));
         }
 
         return view('customers/index', [
             'title'    => 'Customer',
             'rows'     => $data['rows'],
             'pager'    => $data['pager'],
+            'search'   => $data['search'],
             'canWrite' => auth_can('master_data', 'W'),
         ]);
     }

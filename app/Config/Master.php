@@ -36,6 +36,18 @@ class Master extends BaseConfig
         'product_updated'           => 'Produk berhasil diperbarui.',
         'product_deleted'           => 'Produk berhasil dihapus.',
 
+        // Satuan (Master Units, khusus Admin)
+        'unit_code_required' => 'Kode satuan wajib diisi.',
+        'unit_code_taken'    => 'Kode satuan sudah digunakan.',
+        'unit_code_max'      => 'Kode satuan maksimal 20 karakter.',                   
+        'unit_code_format'   => 'Kode satuan hanya boleh berisi huruf dan angka, tanpa spasi.',
+        'unit_name_required' => 'Nama satuan wajib diisi.',
+        'unit_name_taken'    => 'Nama satuan sudah digunakan.',
+        'unit_name_max'      => 'Nama satuan maksimal 50 karakter.',
+        'unit_created'       => 'Satuan berhasil ditambahkan.',
+        'unit_updated'       => 'Satuan berhasil diperbarui.',
+        'unit_deleted'       => 'Satuan berhasil dihapus.',
+
         // Umum (dipakai semua master data)
         'in_use'                 => 'Data tidak dapat dihapus karena sudah digunakan pada %s.', // VR-15, %s = produk/PO/SO
         'not_found'              => 'Data tidak ditemukan.',

@@ -12,10 +12,20 @@ class CustomerModel extends Model
     protected $returnType    = 'array';
     protected $useTimestamps = false; // updated_at diisi manual (now() dari PostgreSQL)
 
-    /** Daftar customer, 10 baris per halaman, urut nama (NFR-11). Pager di $this->pager. */
-    public function listPage(int $perPage = 10): array
+    /**
+     * Daftar customer, 10 baris per halaman, urut nama (NFR-11). Pager di $this->pager.
+     * $search = potongan nama (tanpa membedakan huruf besar/kecil); '' = semua data.
+     */
+    public function listPage(int $perPage = 10, string $search = ''): array
     {
-        $rows = $this->select('id, name, address, phone, email')
+        $this->select('id, name, address, phone, email');
+
+        if ($search !== '') {
+            // like(): karakter % dan _ pada kata kunci di-escape; argumen terakhir true = ILIKE (PostgreSQL)
+            $this->like('name', $search, 'both', true, true);
+        }
+
+        $rows = $this
             ->orderBy('lower(name)', 'ASC', false)
             ->orderBy('id', 'ASC')
             ->paginate($perPage);

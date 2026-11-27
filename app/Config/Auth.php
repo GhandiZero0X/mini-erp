@@ -58,6 +58,7 @@ class Auth extends BaseConfig
     public array $permissions = [
         'master_data'     => ['admin' => 'W', 'purchasing' => 'R', 'sales' => 'R'],
         'users'           => ['admin' => 'W'],
+        'units'           => ['admin' => 'W'], // Master Satuan: hanya Admin (master data lain tidak berubah)
         'purchase_order'  => ['purchasing' => 'W', 'gudang' => 'R', 'manajer' => 'R'],
         'po_approve'      => ['manajer' => 'W'],
         'goods_receipt'   => ['gudang' => 'W'],
@@ -92,6 +93,7 @@ class Auth extends BaseConfig
         ['group' => null,           'label' => 'Beranda',            'path' => 'dashboard',        'icon' => 'bi-speedometer2',    'feature' => null,              'ready' => true,  'desc' => ''],
 
         ['group' => 'Master Data',  'label' => 'Kategori',           'path' => 'categories',       'icon' => 'bi-tags',            'feature' => 'master_data',     'ready' => true,  'desc' => 'Kelola kategori produk.'],
+        ['group' => 'Master Data',  'label' => 'Satuan',             'path' => 'units',            'icon' => 'bi-rulers',          'feature' => 'units',           'ready' => true,  'desc' => 'Kelola satuan produk.'],
         ['group' => 'Master Data',  'label' => 'Produk',             'path' => 'products',         'icon' => 'bi-box-seam',        'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data produk dan harga.'],
         ['group' => 'Master Data',  'label' => 'Supplier',           'path' => 'suppliers',        'icon' => 'bi-truck',           'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data supplier.'],
         ['group' => 'Master Data',  'label' => 'Customer',           'path' => 'customers',        'icon' => 'bi-people',          'feature' => 'master_data',     'ready' => true, 'desc' => 'Kelola data customer.'],

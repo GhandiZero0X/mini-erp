@@ -40,12 +40,26 @@ class SupplierService
         $this->msg       = array_merge(self::DEFAULTS, ($cfg ?? config('Master'))->messages ?? []);
     }
 
-    /** @return array{rows: array, pager: mixed} */
-    public function listPage(): array
+    /**
+     * Daftar halaman ini; $search = kata kunci nama (boleh kosong).
+     * 'search' pada hasil adalah kata kunci yang sudah dibersihkan, dipakai lagi oleh view & redirect.
+     *
+     * @return array{rows: array, pager: mixed, search: string}
+     */
+    public function listPage(string $search = ''): array
     {
-        $rows = $this->suppliers->listPage(10);
+        $search = self::cleanSearch($search);
+        $rows   = $this->suppliers->listPage(10, $search);
 
-        return ['rows' => $rows, 'pager' => $this->suppliers->pager];
+        return ['rows' => $rows, 'pager' => $this->suppliers->pager, 'search' => $search];
+    }
+
+    /** Kata kunci pencarian: ringkas spasi, maksimal 100 karakter (sama dengan maxlength di form). */
+    public static function cleanSearch(mixed $q): string
+    {
+        $q = trim((string) preg_replace('/\s+/u', ' ', is_string($q) ? $q : ''));
+
+        return mb_substr($q, 0, 100);
     }
 
     public function find(int $id): ?array

@@ -48,6 +48,19 @@ $routes->group('categories', ['filter' => 'auth:master_data,W'], static function
     $routes->post('(:num)/delete', 'Categories::delete/$1');
 });
 
+// Master Satuan (Units): hanya Admin (fitur 'units', level W). Selain Admin -> VR-17.
+// Dua grup dipisah agar hak akses tiap rute eksplisit (sama seperti Kategori).
+$routes->group('units', ['filter' => 'auth:units'], static function ($routes) {
+    $routes->get('', 'Units::index');
+});
+$routes->group('units', ['filter' => 'auth:units,W'], static function ($routes) {
+    $routes->get('new', 'Units::new');
+    $routes->post('', 'Units::create');
+    $routes->get('(:num)/edit', 'Units::edit/$1');
+    $routes->post('(:num)', 'Units::update/$1');
+    $routes->post('(:num)/delete', 'Units::delete/$1');
+});
+
 // UC-04 Produk (Master Data). Admin = ubah (W), Purchasing & Sales = hanya lihat (R).
 $routes->group('products', ['filter' => 'auth:master_data'], static function ($routes) {
     $routes->get('', 'Products::index');
